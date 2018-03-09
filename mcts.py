@@ -7,6 +7,7 @@ from copy import deepcopy
 
 
 class MCTNode:
+    """Node class for MCTS. Tracks state and win information."""
     def __init__(self, state_id, state):
         self.id = state_id # Used to identify state
         self.state = state
@@ -18,46 +19,33 @@ class MCTNode:
     def value(self):
         return self.win_count / self.visit_count
 
-    def best_child(self):
+    def most_visited(self):
+        """Returns the action that leads to the most visited child node."""
         best_action = list(self.edges)[0]
-        best_value = 0
+        most_visited = 0
         for action, node in self.edges.items():
-            if node.value > best_value:
+            if node.visit_count > most_visited:
                 best_action = action
+                most_visited = node.visit_count
 
         return best_action
 
+    def best_child(self):
+        """Returns the best child node"""
+        edges = list(self.edges.values())
+        best_index = 0
+        best_value = 0
+
+        i = 0
+        for action, node in self.edges.items():
+            if node.value > best_value:
+                best_index = i
+            i += 1
+
+        return edges[best_index]
+
     def is_leaf(self):
         return self.edges == {}
-
-    def __hash__(self):
-        return self.id
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-class WinNode(MCTNode):
-
-    def __init__(self):
-        super().__init__('win', 'terminal')
-
-    @property
-    def value(self):
-        return 1
-
-    def __hash__(self):
-        return self.id
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-class LossNode(MCTNode):
-    def __init__(self):
-        super().__init__('loss', 'terminal')
-
-    @property
-    def value(self):
-        return 0
 
     def __hash__(self):
         return self.id
@@ -71,9 +59,9 @@ class MCTS:
         self.environment = environment
         self.adversarial = adversarial
         self._logger = logwood.get_logger(self.__class__.__name__)
-        self.calculation_time = datetime.timedelta(seconds=calculation_time)
+        self._calculation_time = datetime.timedelta(seconds=calculation_time)
         self.C = C
-        self.nodes = {'win' : WinNode(), 'loss' : LossNode()}
+        self.nodes = {}
 
         self.rollout_function = random_rollout
         self.terminal = False
@@ -82,17 +70,19 @@ class MCTS:
 
         self.reset_environment()
 
+    @property
+    def calculation_time(self):
+        return self._calculation_time
+
+    @calculation_time.setter
+    def calculation_time(self, seconds):
+        self._calculation_time = datetime.timedelta(seconds=seconds)
+
     def reset_environment(self):
         self.environment.reset()
         state = self.environment.state_space
         self.current = self._get_node(state)
         self.terminal = False
-
-    @property
-    def confidence(self):
-        current_state = self.environment.state_space
-        node = self._get_node(current_state)
-        return node.best_child().value
 
 
     def next_action(self):
@@ -104,21 +94,18 @@ class MCTS:
 
         # Run MCTS for the calculation window
         games_played = 0
-        while datetime.datetime.utcnow() - begin < self.calculation_time:
+
+        while datetime.datetime.utcnow() - begin < self._calculation_time:
             self.run(self.current)
             games_played += 1
 
         self._logger.info(f'Games Simulated: {games_played}')
 
         self._logger.debug('Choosing Action')
-        action = self.current.best_child()
+        action = self.current.most_visited()
         self._logger.info(f"Action Chosen {action}")
-        _, reward, done = self._take_action(self.environment, self.current, action)
+        self.current, reward, done = self._take_action(self.environment, self.current, action)
         if done:
-            if reward == 1:
-                print("Won Game")
-            else:
-                print("Lost Game")
             self.terminal = True
 
     def run(self, root):
@@ -128,18 +115,18 @@ class MCTS:
         current = root
         done = False
         self._logger.debug("Entering Selection Phase")
-        while not done and current.is_leaf():
+        while not done and not current.is_leaf():
             action = self._select(current, clone_env)
             current, reward, done = self._take_action(clone_env, current, action)
-            if current:
-                history.append(current.id)
+            self._logger.debug(f"Selected to State: {current.state}")
+            history.append(current.id)
 
         self._logger.debug("Entering expansion phase")
         if not done:
             action = self._expand(clone_env)
             current, reward, done = self._take_action(clone_env, current, action)
-            if current:
-                history.append(current.id)
+            self._logger.debug(f"Expanded to State: {current.state}")
+            history.append(current.id)
 
         self._logger.debug("Entering simulation phase")
         if not done:
@@ -157,7 +144,8 @@ class MCTS:
     def _select(self, current, env):
         """Selects an action and returns the """
         actions = env.action_space
-        if all(current.edges.get(action) for action in actions):
+        self._logger.debug(all([current.edges.get(action) for action in actions]))
+        if all([current.edges.get(action) for action in actions]):
             self._logger.debug("Calling ucb1 selection")
             action = ucb1_selection(current, C=self.C)
         else:
@@ -171,9 +159,24 @@ class MCTS:
 
     def _simulate(self, current, env):
         done = False
+        depth = 0
         while not done:
             action = self.rollout_function(env.action_space)
             current, reward, done = self._take_action(env, current, action, add_edge=False)
+            self._logger.debug(f"Simulated to state \n{current.state}")
+            depth += 1
+        self._logger.debug(f"Simulated Depth Reached: {depth}")
+
+        # Make sure that the reward is counted for the player at the expansion node
+        # TODO: This is sort of gross. Devise a better way.
+        if depth % 2 == 1 and reward == 1:
+            reward = 0
+
+        elif reward == 0: # Draw
+            # Flip a coin to decide outcome. This should average out to a 50%
+            # win rate on expected draw
+            reward = np.random.randint(2)
+
         return current, reward, done
 
     def _update(self, reward, history):
@@ -183,7 +186,7 @@ class MCTS:
             node.visit_count += 1
             if self.adversarial:
                 if win_next_node:
-                    self._logger.debug(f'Updating win count on id {node_id}')
+                    self._logger.debug(f'Updating win count on state {node.state}')
                     node.win_count += 1
                 # Every other node belongs to the same player
                 win_next_node = not win_next_node
@@ -193,28 +196,20 @@ class MCTS:
 
         Returns: next_node, reward, done
         """
-        next_node = None
         observation, reward, done = env.step(action)
-        if not done:
-            next_node = self._get_node(observation, add_edge=add_edge)
-            if add_edge and not current.edges.get(action):
-                current.edges[action] = self.nodes[next_node.id]
-        else:
-            if reward == 1:
-                current.edges[action] = self.nodes['win']
-            else:
-                current.edges[action] = self.nodes['loss']
+        next_node = self._get_node(observation)
+        if add_edge and not current.edges.get(action):
+            current.edges[action] = self.nodes[next_node.id]
+
         return next_node, reward, done
 
 
-
-    def _get_node(self, state, add_edge=True):
+    def _get_node(self, state):
         """Grabs the appropriate node for the given state or generates a new one"""
         unique_id = xxhash.xxh64(state).digest()
         if unique_id in self.nodes:
             return self.nodes[unique_id]
         else:
             node = MCTNode(unique_id, state)
-            if add_edge:
-                self.nodes[unique_id] = deepcopy(node)
+            self.nodes[unique_id] = deepcopy(node)
             return node
