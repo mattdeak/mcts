@@ -10,18 +10,22 @@ class GymWrapper:
 
         self.env = env
         self._observation = np.array(self.env.reset())
-        self.action_space = np.arange(self.env.action_space.n)
-        self.env.reset()
 
     @property
     def state_space(self):
-        self._observation
+        return self._observation
 
+    @property
+    def action_space(self):
+        return np.arange(self.env.action_space.n)
 
     def step(self, action):
-        self._observation, reward, done, _ = self.env.step(action)
+        observation, reward, done, _ = self.env.step(action)
+        self._observation = np.array(observation)
         return self._observation, reward, done
 
+    def reset(self):
+        self.env.reset()
 
     def clone(self):
-        return deepcopy(self.env)
+        return deepcopy(self)
