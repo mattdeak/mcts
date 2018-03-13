@@ -1,7 +1,7 @@
 import xxhash
 import logwood
 import numpy as np
-from utils import random_rollout, ucb1_selection
+from utils import ucb1
 import datetime
 from copy import deepcopy
 
@@ -55,7 +55,7 @@ class MCTNode:
 
 class MCTS:
 
-    def __init__(self, environment, adversarial=True, C=1.41, calculation_time=5):
+    def __init__(self, environment, policy_manager=None, adversarial=True, C=1.41, calculation_time=5):
         self.environment = environment
         self.adversarial = adversarial
         self._logger = logwood.get_logger(self.__class__.__name__)
@@ -63,7 +63,11 @@ class MCTS:
         self.C = C
         self.nodes = {}
 
-        self.rollout_function = random_rollout
+        if policy_manager:
+            self.policy_manager = policy_manager
+        else:
+            self.policy_manager = DefaultPolicyManager(C=C)
+
         self.terminal = False
 
         self.simulation_stats = {'Games' : 0, 'Wins' : 0, 'Losses': 0}
@@ -142,18 +146,21 @@ class MCTS:
 
 
     def _select(self, current, env):
-        """Selects an action and returns the """
+        """Selects an action and returns the UCB1 selection"""
         actions = env.action_space
         self._logger.debug(all([current.edges.get(action) for action in actions]))
-        if all([current.edges.get(action) for action in actions]):
+
+        remaining_actions = set(actions) - set(action for action in list(current.edges))
+        if not remaining_action:
             self._logger.debug("Calling ucb1 selection")
-            action = ucb1_selection(current, C=self.C)
+            action = self.policy_manager.selection(current)
         else:
-            action = self.rollout_function(actions)
+            action = np.random.choice(remaining_actions)
         return action
 
+
     def _expand(self, env):
-        action = self.rollout_function(env.action_space)
+        action = _function(env.action_space)
         return action
 
 
@@ -161,7 +168,7 @@ class MCTS:
         done = False
         depth = 0
         while not done:
-            action = self.rollout_function(env.action_space)
+            action = self.policy_manager.rollout(env)
             current, reward, done = self._take_action(env, current, action, add_edge=False)
             self._logger.debug(f"Simulated to state \n{current.state}")
             depth += 1
@@ -179,6 +186,7 @@ class MCTS:
 
         return current, reward, done
 
+
     def _update(self, reward, history):
         win_next_node = reward == 1
         for node_id in reversed(history):
@@ -190,6 +198,7 @@ class MCTS:
                     node.win_count += 1
                 # Every other node belongs to the same player
                 win_next_node = not win_next_node
+
 
     def _take_action(self, env, current, action, add_edge=True):
         """Takes the action in the environment and records
