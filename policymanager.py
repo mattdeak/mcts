@@ -69,14 +69,13 @@ class NNPolicyManager(BasePolicyManager):
         memory_size (int): The number of samples to retain in the replay table.
         alpha (float 0 < x < 1): The Alpha to use in generating dirichlet noise
         """
-    def __init__(self, model, simulator=None, checkpoint=1000, validation_games=400,
+    def __init__(self, model, environment, checkpoint=1000, validation_games=400,
                     update_threshold=0.55, memory_size=10000, alpha=0.03,
                     C=1.41, batch_size=32, temperature=0.05, training=False):
         super(NNPolicyManager, self).__init__()
         self._nn_logger = logwood.get_logger(self.__class__.__name__ + '|Network')
         self.model = model
 
-        self.memory_size = memory_size
         self.alpha = alpha
         self.C = C
         self.temperature = temperature
@@ -86,7 +85,7 @@ class NNPolicyManager(BasePolicyManager):
 
         if self.training:
             self._next_model = model.clone()
-            self.simulator = simulator
+            self.simulator = Simulator(environment)
             self.checkpoint_interval = checkpoint
             self.checkpoint = 1
             self.validation_games = validation_games
@@ -114,9 +113,9 @@ class NNPolicyManager(BasePolicyManager):
 
 
     def _train_process(self):
-        for i in range(self.checkpoint):
+        for i in range(self.checkpoint_interval):
             X, y1, y2 = np.random.choice(self.replay_table, self.batch_size, replace=False)
-            history = self._next_model.fit(X, y)
+            history = self._next_model.fit(X, [y1, y2])
             self._nn_logger.info(history)
 
         self.checkpoint += self.checkpoint_interval
@@ -154,4 +153,21 @@ class NNPolicyManager(BasePolicyManager):
         results = self.simulator.simulate([current_agent, next_agent], n=validation_games)
         # TODO: If next agent won more than win_threshold percent, switch models
         if results[2]['wins']/self.validation_games > self.update_threshold:
-            self.model.set_weights(self._next_model.get_weights())
+            self.model = self._next_model.clone()
+
+class ZeroPolicyManager(NNPolicyManager):
+    """Policy Manager for AlphaGo Zero style play.
+
+    Uses a residual convolutional network for policy and value evaluations."""
+    def __init__(self, environment, residual_layers=40, filters=256, kernel_size=3, **kwargs):
+        input_shape = environment.state.shape
+        output_shape = environment.action_space
+
+        model = ZeroNN(
+            input_shape,
+            output_shape,
+            residual_layers=residual_layers,
+            filters=filters,
+            kernel_size=kernel_size)
+
+        super(ZeroPolicyManager, self).__init__(model, environment, **kwargs)

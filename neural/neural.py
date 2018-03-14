@@ -1,4 +1,5 @@
-from .utils import  build_rescnn
+from keras.callbacks import LearningRateScheduler
+from .utils import zeronet_lr_schedule
 
 class BaseNN:
     """The base neural network class for MCTS integration.
@@ -21,10 +22,13 @@ class BaseNN:
         return clone
 
     def fit(self, X, y, **kwargs):
-        return self.model.fit(X, y, callbacks=self.callbacks, **kwargs=**kwargs)
+        return self.model.fit(X, y, callbacks=self.callbacks, **kwargs)
 
     def predict(self, X, kwargs):
         return self.model.predict(X, **kwargs)
+
+    def evaluate(self, X, y):
+        return self.model.evaluate(X, y)
 
     def save(self, filepath):
         """Saves the model architecture and weights"""
@@ -33,10 +37,14 @@ class BaseNN:
         """Loads a model from filepath"""
 
 class ZeroNN(BaseNN):
+    """Implements an AlphaGo Zero style residual network"""
+    def __init__(self, input_shape, output_shape, residual_layers=40, filters=256, kernel_size=3):
+        model = zeronet(input_shape,
+                        output_shape
+                        filters,
+                        kernel_size,
+                        residual_layers=residual_layers)
 
-    def __init__(self, env, residual_layers=40, filters=256, kernel_size=3):
-        model = zeronet(env.state.shape,
-                             env.action_space.shape,
-                             filters, kernel_size,
-                             residual_layers=residual_layers)
-        super(ZeroNN, self).__init__(model)
+        callbacks = [LearningRateScheduler(zeronet_lr_schedule)]
+
+        super(ZeroNN, self).__init__(model, callbacks)

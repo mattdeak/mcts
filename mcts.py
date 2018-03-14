@@ -63,13 +63,18 @@ class MCTNode:
 
 class MCTS:
 
-    def __init__(self, environment, policy_manager=None, adversarial=True, C=1.41, calculation_time=5):
+    def __init__(self, environment, policy_manager=None, C=1.41, calculation_time=5,
+                 max_simulations=None):
         self.environment = environment
-        self.adversarial = adversarial
         self._logger = logwood.get_logger(self.__class__.__name__)
         self._calculation_time = datetime.timedelta(seconds=calculation_time)
         self.C = C
         self.nodes = {}
+
+        if max_simulations:
+            self.max_simulations = max_simulations
+        else:
+            self.max_simulations = np.inf
 
         if policy_manager:
             self.policy_manager = policy_manager
@@ -107,7 +112,8 @@ class MCTS:
         # Run MCTS for the calculation window
         games_played = 0
 
-        while datetime.datetime.utcnow() - begin < self._calculation_time:
+        while (datetime.datetime.utcnow() - begin < self._calculation_time)
+                and games_played < self.max_simulations:
             self.run(self.current)
             games_played += 1
 

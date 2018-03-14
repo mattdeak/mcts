@@ -1,7 +1,8 @@
 class Simulator:
 
     def __init__(self, env):
-        self.environment = env
+        # Make sure we have a deep copy
+        self.environment = env.clone()
 
     def simulate(self, players, n=10):
         env = self.environment # Shortcut
