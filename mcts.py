@@ -4,6 +4,7 @@ import numpy as np
 from utils import ucb1
 from policymanager import DefaultPolicyManager
 import datetime
+from sortedcontainers import sorteddict
 from copy import deepcopy
 
 
@@ -12,9 +13,9 @@ class MCTNode:
     def __init__(self, state_id, state):
         self.id = state_id # Used to identify state
         self.state = state
-        self.visit_count = 1
+        self.visit_count = 0
         self.win_count = 0
-        self.edges = {}
+        self.edges = SortedDict()
 
     @property
     def value(self):
@@ -48,11 +49,17 @@ class MCTNode:
     def is_leaf(self):
         return self.edges == {}
 
+    def __getitem__(self, action):
+        item = self._edges.get(action)
+        if not item:
+            item = MCTNode(1, None) # Return Dummy MCTNode for never visited
+
     def __hash__(self):
         return self.id
 
     def __eq__(self, other):
         return self.id == other.id
+
 
 class MCTS:
 
@@ -70,8 +77,6 @@ class MCTS:
             self.policy_manager = DefaultPolicyManager(C=C)
 
         self.terminal = False
-
-        self.simulation_stats = {'Games' : 0, 'Wins' : 0, 'Losses': 0}
 
         self.reset_environment()
 
@@ -91,7 +96,7 @@ class MCTS:
         self.terminal = False
 
 
-    def next_action(self):
+    def act(self):
         """Takes the next action in the current game environment."""
         state = self.environment.state
         self.current = self._get_node(state)
