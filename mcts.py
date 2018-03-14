@@ -2,6 +2,7 @@ import xxhash
 import logwood
 import numpy as np
 from utils import ucb1
+from policymanager import DefaultPolicyManager
 import datetime
 from copy import deepcopy
 
@@ -83,14 +84,16 @@ class MCTS:
         self._calculation_time = datetime.timedelta(seconds=seconds)
 
     def reset_environment(self):
+        """Resets the game environment"""
         self.environment.reset()
-        state = self.environment.state_space
+        state = self.environment.state
         self.current = self._get_node(state)
         self.terminal = False
 
 
     def next_action(self):
-        state = self.environment.state_space
+        """Takes the next action in the current game environment."""
+        state = self.environment.state
         self.current = self._get_node(state)
         if self.terminal:
             raise ValueError("Game environment is terminal. Cannot take action.")
@@ -113,6 +116,7 @@ class MCTS:
             self.terminal = True
 
     def run(self, root):
+        """Runs a single iteration of Monte-Carlo tree search."""
         clone_env = self.environment.clone()
         history = []
         history.append(root.id)
@@ -136,22 +140,17 @@ class MCTS:
         if not done:
             current, reward, done = self._simulate(current, clone_env)
 
-        if reward == 1:
-            self.simulation_stats['Wins'] += 1
-        else:
-            self.simulation_stats['Losses'] += 1
-
         self._logger.debug("Entering update phase")
         self._update(reward, history)
 
 
     def _select(self, current, env):
         """Selects an action and returns the UCB1 selection"""
-        actions = env.action_space
+        actions = env.actions
         self._logger.debug(all([current.edges.get(action) for action in actions]))
 
-        remaining_actions = set(actions) - set(action for action in list(current.edges))
-        if not remaining_action:
+        remaining_actions = [action for action in actions if action not in list(current.edges)]
+        if not remaining_actions:
             self._logger.debug("Calling ucb1 selection")
             action = self.policy_manager.selection(current)
         else:
@@ -160,7 +159,7 @@ class MCTS:
 
 
     def _expand(self, env):
-        action = _function(env.action_space)
+        action = self.policy_manager.rollout(env)
         return action
 
 

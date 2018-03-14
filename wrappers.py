@@ -12,11 +12,11 @@ class GymWrapper:
         self._observation = np.array(self.env.reset())
 
     @property
-    def state_space(self):
+    def state(self):
         return self._observation
 
     @property
-    def action_space(self):
+    def actions(self):
         return np.arange(self.env.action_space.n)
 
     def step(self, action):
