@@ -24,6 +24,9 @@ class BaseNN:
     def fit(self, X, y, **kwargs):
         return self.model.fit(X, y, callbacks=self.callbacks, **kwargs)
 
+    def fit_generator(self, generator, **kwargs):
+        return self.model.fit_generator(generator, **kwargs)
+
     def predict(self, X, kwargs):
         return self.model.predict(X, **kwargs)
 

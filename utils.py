@@ -28,3 +28,10 @@ def puct(node, priors, C=1.41):
         qus.append(qu)
 
     return np.argmax(qus)
+
+def zero_temperature_choice(node, t=1e-5):
+    edges = node.edges
+    temp_visit_counts = sum([edge.visit_count for edge in edges.values()])**(1/t)
+    temp_values = [[action, edge.visit_count**(1/t)/temp_visit_counts for action, edge in edges.items()]]
+    action, value = max(temp_values, key=lambda x: x[1])
+    return action

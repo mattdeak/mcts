@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
+import asyncio
 from collections import deque
 import logwood
 from utils import ucb1, puct
 from numpy.random import choice
 from scipy.stats import dirichlet
-from multiprocessing.pool import Pool
+import threading
+from queue import Queue
+
 class BasePolicyManager(ABC):
     """
     The base class for the MCTS policy manager.
@@ -17,7 +20,11 @@ class BasePolicyManager(ABC):
         self._logger = logwood.get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def rollout(self, state):
+    def action_choice(self, node):
+        """This policy determines the action to be taken after MCTS has finished."""
+
+    @abstractmethod
+    def rollout(self, node):
         """This policy determines what action is taken in the expansion and
         simulation phases of the MCTS."""
 
@@ -43,7 +50,10 @@ class DefaultPolicyManager(BasePolicyManager):
         super(DefaultPolicyManager, self).__init__()
         self.C = C
 
-    def rollout(self, env):
+    def action_choice(self, node):
+        return node.most_visited_child()
+
+    def rollout(self, node):
         return choice(env.actions)
 
     def selection(self, node):
@@ -70,27 +80,52 @@ class NNPolicyManager(BasePolicyManager):
         alpha (float 0 < x < 1): The Alpha to use in generating dirichlet noise
         """
     def __init__(self, model, environment, checkpoint=1000, validation_games=400,
-                    update_threshold=0.55, memory_size=10000, alpha=0.03,
-                    C=1.41, batch_size=32, temperature=0.05, training=False):
+                    update_threshold=0.55, memory_size=25000, alpha=0.03,
+                    epsilon=0.25, C=1.41, batch_size=64, optimize=True
+                    temperature_schedule={0:1e-5}, batch_size=32, training=False):
         super(NNPolicyManager, self).__init__()
         self._nn_logger = logwood.get_logger(self.__class__.__name__ + '|Network')
         self.model = model
 
         self.alpha = alpha
         self.C = C
-        self.temperature = temperature
-        self.training = training
+
+        self._training = training
 
         self._next_model = model.clone()
+        self.simulator = Simulator(environment)
+        self.checkpoint_interval = checkpoint
+        self.checkpoint = 1
+        self.training_step = 0
+        self.epsilon = epsilon
+        self.validation_games = validation_games
+        self.update_threshold = update_threshold
+        self.replay_table = deque(maxlen=memory_size)
+        self.min_train_capacity = memory_size/2
 
-        if self.training:
-            self._next_model = model.clone()
-            self.simulator = Simulator(environment)
-            self.checkpoint_interval = checkpoint
-            self.checkpoint = 1
-            self.validation_games = validation_games
-            self.update_threshold = update_threshold
-            self.replay_table = deque(maxlen=memory_size)
+        self._train_thread = threading.Thread(target=self._train_process())
+
+        self.datapoint_added = threading.Event()
+        self._stop_optimization = threading.Event()
+
+        if optimize:
+            self._train_thread.start()
+
+        self.temperature_schedule = SortedDict(temperature_schedule)
+
+
+    def start_optimization(self):
+        self._stop_optimization.clear()
+
+    def halt_optimization(self):
+        self._stop_optimization.set()
+
+    def action_choice(self, node, move_number=None):
+        if move_number:
+            temp = [i for j, i in self.tempurature_schedule.items() if j < 5][-1]
+            return zero_temperature_choice(node, temp)
+        else:
+            return zero_temperature_choice(node)
 
 
     def rollout(self, node):
@@ -102,21 +137,30 @@ class NNPolicyManager(BasePolicyManager):
         probabilities = self.model.predict(node.state)
         # Add a little noise to the root node to add exploration
         if root:
-            probabilities = dirichlet(probabilities)
+            probabilities = (1-self.epsilon)*probabilities + self.epsilon*dirichlet(probabilities)
 
         return puct(node, probabilities, self.C)
 
 
     def update(self, node, reward):
         # We add the node to the replay table
-        self.replay_table.append([node.state, node.value, reward])
+        edge_values = [edge.value for edge in node.edges.values()]
+        self.replay_table.append([node.state, edge_values, reward])
+        # Trigger datapoint added event
+        self.datapoint_added.set()
+        self.datapoint_added.clear()
 
 
     def _train_process(self):
-        for i in range(self.checkpoint_interval):
-            X, y1, y2 = np.random.choice(self.replay_table, self.batch_size, replace=False)
-            history = self._next_model.fit(X, [y1, y2])
-            self._nn_logger.info(history)
+        replay = self.replay_table # Shortcut
+        min_capacity = self.min_capacity / 2
+        while not self._stop_optimization.is_set():
+            self._nn_logger.debug("Waiting for data point")
+            self.datapoint_added.wait()
+            while len(replay_table) > replay.maxlen/2
+                X, y1, y2 = np.random.choice(self.replay_table, self.batch_size, replace=False)
+                history = self._next_model.fit(X, [y1, y2], initial_epoch=self.training_step)
+                self._nn_logger.info(history)
 
         self.checkpoint += self.checkpoint_interval
         self._next_model.save(f'checkpoint {self.checkpoint}')

@@ -10,9 +10,10 @@ from copy import deepcopy
 
 class MCTNode:
     """Node class for MCTS. Tracks state and win information."""
-    def __init__(self, state_id, state):
+    def __init__(self, state_id, state, player_turn):
         self.id = state_id # Used to identify state
         self.state = state
+        self.player = player_turn
         self.visit_count = 0
         self.win_count = 0
         self.edges = SortedDict()
@@ -21,7 +22,7 @@ class MCTNode:
     def value(self):
         return self.win_count / self.visit_count
 
-    def most_visited(self):
+    def most_visited_child(self):
         """Returns the action that leads to the most visited child node."""
         best_action = list(self.edges)[0]
         most_visited = 0
@@ -82,6 +83,7 @@ class MCTS:
             self.policy_manager = DefaultPolicyManager(C=C)
 
         self.terminal = False
+        self.game_history = []
 
         self.reset_environment()
 
@@ -98,6 +100,8 @@ class MCTS:
         self.environment.reset()
         state = self.environment.state
         self.current = self._get_node(state)
+        self.game_history.append(self.current.id)
+        self.move_number = 1
         self.terminal = False
 
 
@@ -120,11 +124,16 @@ class MCTS:
         self._logger.info(f'Games Simulated: {games_played}')
 
         self._logger.debug('Choosing Action')
-        action = self.current.most_visited()
+        action = self.policy_manager.action_choice(self.current)
         self._logger.info(f"Action Chosen {action}")
+
         self.current, reward, done = self._take_action(self.environment, self.current, action)
+        self.game_history.append(self.current.id)
+        self.move_number += 1
+
         if done:
-            self.terminal = True
+            self._handle_termination()
+
 
     def run(self, root):
         """Runs a single iteration of Monte-Carlo tree search."""
@@ -208,6 +217,16 @@ class MCTS:
                     node.win_count += 1
                 # Every other node belongs to the same player
                 win_next_node = not win_next_node
+
+    def _handle_termination(self, reward):
+        self.terminal = True
+        for node_id in self.game_history:
+            node = self._get_node(node_id)
+            if self.environment.winner == node.player and reward != 0:
+                reward = 1
+            elif reward != 0:
+                reward = -1
+            self.policy_manager.update(node, reward)
 
 
     def _take_action(self, env, current, action, add_edge=True):
