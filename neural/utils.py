@@ -6,12 +6,14 @@ from keras.layers import regularizers
 from keras.callbacks import LearningRateScheduler
 from keras.optimizers import SGD
 import keras.backend as K
+import numpy as np
 
 def convolutional_block(x, filters=256, kernel_size=[3,3], c_reg=0.0001):
     x = Conv2D(filters= filters,
              kernel_size=kernel_size,
              padding='same',
              activation='linear',
+             use_bias=False,
              kernel_regularizer=regularizers.l2(c_reg))(x)
     x = BatchNormalization(axis=1)(x)
     x = LeakyReLU()(x)
@@ -26,6 +28,7 @@ def residual_block(input_layer, filters=256, kernel_size=[3,3], c_reg=0.0001, na
              kernel_size=kernel_size,
              padding='same',
              activation='linear',
+             use_bias=False,
              kernel_regularizer=regularizers.l2(c_reg)
              )(x)
 
@@ -44,6 +47,7 @@ def policy_head(x, output_shape, filters=2, kernel_size=[1, 1], c_reg=0.0001):
     x = Dense(output_shape,
               activation='linear',
               kernel_regularizer=regularizers.l2(c_reg),
+              use_bias=False,
               name='policy_head')(x)
     return x
 
@@ -54,13 +58,15 @@ def value_head(x, dense_shape=4, filters=1, kernel_size=[1, 1], c_reg=0.0001):
     x = Dense(
         dense_shape,
         activation='linear',
-        kernel_regularizer=regularizers.l2(c_reg)
+        kernel_regularizer=regularizers.l2(c_reg),
+        use_bias=False
         )(x)
     x = LeakyReLU()(x)
     x = Dense(
         1,
         activation='tanh',
         kernel_regularizer=regularizers.l2(c_reg),
+        use_bias=False,
         name='value_head'
         )(x)
 
@@ -71,6 +77,10 @@ def crossentropy_with_logits(y_true, y_pred):
 
 def load_zeronet(input_shape, output_shape, residual_layers=40, lr=0.0001, c_reg=0.0001,
                  momentum=0.9):
+
+    # If the dimension is M x N, make it M x N x 1
+    if len(input_shape)== 2:
+        input_shape = np.append(input_shape, 1)
     # First layer is just convolutional
     input_layer = Input(shape=input_shape, name='Input')
     x = convolutional_block(input_layer)
@@ -87,12 +97,17 @@ def load_zeronet(input_shape, output_shape, residual_layers=40, lr=0.0001, c_reg
 
     optimizer = SGD(lr=lr, momentum=0.9, decay=0.0, nesterov=False)
 
+    losses = {
+        'value_head':'mean_squared_error',
+        'policy_head':crossentropy_with_logits
+        }
+
+    loss_weights = {'value_head':0.5, 'policy_head':0.5}
+
+
     model.compile(
-        loss={
-            'value_head':'mean_squared_error',
-            'policy_head':crossentropy_with_logits
-            },
-        loss_weights={'value_head':0.5, 'policy_head':0.5},
+        loss=losses,
+        loss_weights=loss_weights,
         optimizer=optimizer
         )
 

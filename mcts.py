@@ -4,7 +4,7 @@ import numpy as np
 from utils import ucb1
 from policymanager import DefaultPolicyManager
 import datetime
-from sortedcontainers import sorteddict
+from sortedcontainers.sorteddict import SortedDict
 from copy import deepcopy
 
 
@@ -20,7 +20,10 @@ class MCTNode:
 
     @property
     def value(self):
-        return self.win_count / self.visit_count
+        if self.visit_count == 0:
+            return 0
+        else:
+            return self.win_count / self.visit_count
 
     def most_visited_child(self):
         """Returns the action that leads to the most visited child node."""
@@ -51,9 +54,8 @@ class MCTNode:
         return self.edges == {}
 
     def __getitem__(self, action):
-        item = self._edges.get(action)
-        if not item:
-            item = MCTNode(1, None) # Return Dummy MCTNode for never visited
+        return self.edges.get(action, MCTNode(1, None, None))
+        # Return Dummy MCTNode for never visited
 
     def __hash__(self):
         return self.id
@@ -70,7 +72,6 @@ class MCTS:
         self._logger = logwood.get_logger(self.__class__.__name__)
         self._calculation_time = datetime.timedelta(seconds=calculation_time)
         self.C = C
-        self.nodes = {}
 
         if max_simulations:
             self.max_simulations = max_simulations
@@ -85,7 +86,7 @@ class MCTS:
         self.terminal = False
         self.game_history = []
 
-        self.reset_environment()
+        self.reset()
 
     @property
     def calculation_time(self):
@@ -95,20 +96,35 @@ class MCTS:
     def calculation_time(self, seconds):
         self._calculation_time = datetime.timedelta(seconds=seconds)
 
-    def reset_environment(self):
+    def reset(self):
+        self._logger.info("Resetting MCTS Nodes")
+        self.terminal = False
+        self.nodes = {}
+        self.game_history = []
+        self._reset_environment()
+
+    def _reset_environment(self):
         """Resets the game environment"""
         self.environment.reset()
         state = self.environment.state
-        self.current = self._get_node(state)
+        player = -1 # Nobody moved into the starting state
+        self.current = self._get_node(state, player=player)
         self.game_history.append(self.current.id)
         self.move_number = 1
-        self.terminal = False
 
 
     def act(self):
         """Takes the next action in the current game environment."""
         state = self.environment.state
-        self.current = self._get_node(state)
+        player = self.environment.last_player
+        self.current = self._get_node(state, player)
+
+        if self.current.id not in self.game_history:
+            self._logger.info(f"Adding ID {self.current.id} to history")
+            self.game_history.append(self.current.id)
+
+
+
         if self.terminal:
             raise ValueError("Game environment is terminal. Cannot take action.")
         begin = datetime.datetime.utcnow()
@@ -116,8 +132,8 @@ class MCTS:
         # Run MCTS for the calculation window
         games_played = 0
 
-        while (datetime.datetime.utcnow() - begin < self._calculation_time)
-                and games_played < self.max_simulations:
+        while ((datetime.datetime.utcnow() - begin < self._calculation_time) and
+               games_played < self.max_simulations):
             self.run(self.current)
             games_played += 1
 
@@ -128,11 +144,16 @@ class MCTS:
         self._logger.info(f"Action Chosen {action}")
 
         self.current, reward, done = self._take_action(self.environment, self.current, action)
-        self.game_history.append(self.current.id)
+        self._logger.info(f"Adding Node {self.current.id} to game dictionary.")
         self.move_number += 1
+        winner = self.environment.winner
+
+        if self.current.id not in self.game_history:
+            self.game_history.append(self.current.id)
+
 
         if done:
-            self._handle_termination()
+            self._handle_termination(reward, winner)
 
 
     def run(self, root):
@@ -151,7 +172,7 @@ class MCTS:
 
         self._logger.debug("Entering expansion phase")
         if not done:
-            action = self._expand(clone_env)
+            action = self._expand(current, clone_env)
             current, reward, done = self._take_action(clone_env, current, action)
             self._logger.debug(f"Expanded to State: {current.state}")
             history.append(current.id)
@@ -160,26 +181,23 @@ class MCTS:
         if not done:
             current, reward, done = self._simulate(current, clone_env)
 
-        self._logger.debug("Entering update phase")
-        self._update(reward, history)
+        # Draws will approximate to a 50% win.
+        winner = clone_env.winner
+        if winner == None:
+            winner = np.random.randint(clone_env.n_players) + 1
+            reward = np.random.randint(2)
+
+        self._update(reward, winner, history)
 
 
     def _select(self, current, env):
         """Selects an action and returns the UCB1 selection"""
-        actions = env.actions
-        self._logger.debug(all([current.edges.get(action) for action in actions]))
-
-        remaining_actions = [action for action in actions if action not in list(current.edges)]
-        if not remaining_actions:
-            self._logger.debug("Calling ucb1 selection")
-            action = self.policy_manager.selection(current)
-        else:
-            action = np.random.choice(remaining_actions)
+        action = self.policy_manager.selection(current, env)
         return action
 
 
-    def _expand(self, env):
-        action = self.policy_manager.rollout(env)
+    def _expand(self, current, env):
+        action = self.policy_manager.rollout(current, env)
         return action
 
 
@@ -187,41 +205,28 @@ class MCTS:
         done = False
         depth = 0
         while not done:
-            action = self.policy_manager.rollout(env)
+            action = self.policy_manager.rollout(current, env)
             current, reward, done = self._take_action(env, current, action, add_edge=False)
             self._logger.debug(f"Simulated to state \n{current.state}")
             depth += 1
         self._logger.debug(f"Simulated Depth Reached: {depth}")
 
-        # Make sure that the reward is counted for the player at the expansion node
-        # TODO: This is sort of gross. Devise a better way.
-        if depth % 2 == 1 and reward == 1:
-            reward = 0
-
-        elif reward == 0: # Draw
-            # Flip a coin to decide outcome. This should average out to a 50%
-            # win rate on expected draw
-            reward = np.random.randint(2)
-
         return current, reward, done
 
 
-    def _update(self, reward, history):
-        win_next_node = reward == 1
+    def _update(self, reward, winner, history):
         for node_id in reversed(history):
             node = self.nodes[node_id]
             node.visit_count += 1
-            if self.adversarial:
-                if win_next_node:
-                    self._logger.debug(f'Updating win count on state {node.state}')
-                    node.win_count += 1
-                # Every other node belongs to the same player
-                win_next_node = not win_next_node
+            if node.player == winner:
+                self._logger.debug(f'Updating win count on state {node.state}')
+                node.win_count += 1
 
-    def _handle_termination(self, reward):
+
+    def _handle_termination(self, reward, winner):
         self.terminal = True
         for node_id in self.game_history:
-            node = self._get_node(node_id)
+            node = self.nodes[node_id]
             if self.environment.winner == node.player and reward != 0:
                 reward = 1
             elif reward != 0:
@@ -234,20 +239,24 @@ class MCTS:
 
         Returns: next_node, reward, done
         """
+        player = env.player
         observation, reward, done = env.step(action)
-        next_node = self._get_node(observation)
+        next_node = self._get_node(observation, player=player)
         if add_edge and not current.edges.get(action):
             current.edges[action] = self.nodes[next_node.id]
 
         return next_node, reward, done
 
 
-    def _get_node(self, state):
+    def _get_node(self, state, player=None):
         """Grabs the appropriate node for the given state or generates a new one"""
         unique_id = xxhash.xxh64(state).digest()
         if unique_id in self.nodes:
             return self.nodes[unique_id]
         else:
-            node = MCTNode(unique_id, state)
+            if player == None:
+                raise ValueError(f"Can't create node for state {state} - no player specified")
+
+            node = MCTNode(unique_id, state, player)
             self.nodes[unique_id] = deepcopy(node)
             return node

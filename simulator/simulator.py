@@ -6,18 +6,34 @@ class Simulator:
 
     def simulate(self, players, n=10):
         env = self.environment # Shortcut
-        players = {i: players[i] for i in range(len(players))}
-        sim_data = {i: {'wins': 0, 'losses': 0} for i in range(len(players))}
+        for player in players:
+            player.environment=env
+
+        player_dict = {i+1: players[i] for i in range(len(players))}
+        sim_data = {i+1: {'wins': 0, 'losses': 0, 'draws':0} for i in range(len(players))}
 
         for i in range(n):
-            env.reset()
+            print(f"Starting game {i}")
+            print(env.board)
+            for player in player_dict.values():
+                if player.terminal:
+                    player.reset()
             while not env.terminal:
-                current_player = players[env]
-                winner = current_player.act()
-            sim_data[winner]['wins'] += 1
+                current_player = player_dict[env.player]
+                print(f"Player {env.player} Turn")
+                current_player.act()
 
-            for player in sim_data:
-                if player != winner:
-                    sim_data[player]['losses'] += 1
+
+            winner = env.winner
+            if winner:
+                print(f"Winner player {winner}")
+                sim_data[winner]['wins'] += 1
+
+                for player in sim_data:
+                    if player != winner:
+                        sim_data[player]['losses'] += 1
+            else:
+                for player in sim_data:
+                    sim_data[player]['draws'] += 1
 
         return sim_data

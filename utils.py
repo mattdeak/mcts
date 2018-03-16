@@ -10,7 +10,8 @@ def ucb1(node, C=1.41):
     return action
 
 def puct(node, priors, C=1.41):
-    """Returns the action that maximizes the AlphaZero PUCT variation.
+    """Returns a probability distribution over actions according to
+     the AlphaZero PUCT variation.
 
     Input:
         node (MCTNpde): The node to select actions from.
@@ -19,19 +20,20 @@ def puct(node, priors, C=1.41):
         C (float): A hyperparameter to control exploration/exploitation."""
     edges = node.edges
     root_N = np.sqrt(np.sum([edge.visit_count for edge in edges.values()]))
-    qus = []
-    for i in range(priors):
+    qus = np.zeros(len(priors))
+    for i in range(len(priors)):
         prior = priors[i]
         edge = node[i]
 
-        qu = C * prior * root_N / edge.visit_count
-        qus.append(qu)
+        qu = edge.value + C * prior * root_N / (edge.visit_count + 1e-5)
 
-    return np.argmax(qus)
+        qus[i] = qu
 
-def zero_temperature_choice(node, t=1e-5):
+    return qus
+
+def zero_temperature_choice(node, t=1e-2):
     edges = node.edges
-    temp_visit_counts = sum([edge.visit_count for edge in edges.values()])**(1/t)
-    temp_values = [[action, edge.visit_count**(1/t)/temp_visit_counts for action, edge in edges.items()]]
+    temp_visit_counts = sum([edge.visit_count**(1/t) for edge in edges.values()])
+    temp_values = [[action, edge.visit_count**(1/t)/temp_visit_counts] for action, edge in edges.items()]
     action, value = max(temp_values, key=lambda x: x[1])
     return action

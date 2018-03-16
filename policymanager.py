@@ -7,6 +7,12 @@ from numpy.random import choice
 from scipy.stats import dirichlet
 import threading
 from queue import Queue
+from simulator.simulator import Simulator
+from sortedcontainers import SortedDict
+from utils import zero_temperature_choice
+import atexit
+import sys
+import numpy as np
 
 class BasePolicyManager(ABC):
     """
@@ -80,45 +86,82 @@ class NNPolicyManager(BasePolicyManager):
         alpha (float 0 < x < 1): The Alpha to use in generating dirichlet noise
         """
     def __init__(self, model, environment, checkpoint=1000, validation_games=400,
-                    update_threshold=0.55, memory_size=25000, alpha=0.03,
-                    epsilon=0.25, C=1.41, batch_size=64, optimize=True
-                    temperature_schedule={0:1e-5}, batch_size=32, training=False):
+                    update_threshold=0.55, memory_size=10, alpha=0.03,
+                    epsilon=0.25, C=1.41, optimize=True,
+                    temperature_schedule={0:1e-2}, batch_size=4, training=False):
         super(NNPolicyManager, self).__init__()
         self._nn_logger = logwood.get_logger(self.__class__.__name__ + '|Network')
-        self.model = model
+
+        self._next_model = model
+        self.model = model.clone()
+
+
+        self._initialize_models()
+        self._input_dims = model.input.shape.ndims
 
         self.alpha = alpha
         self.C = C
 
         self._training = training
 
-        self._next_model = model.clone()
+
+
+        self._state_shape = environment.state.shape
+        self._n_policies = environment.action_space
+
         self.simulator = Simulator(environment)
         self.checkpoint_interval = checkpoint
         self.checkpoint = 1
-        self.training_step = 0
+        self._training_step = 0
         self.epsilon = epsilon
         self.validation_games = validation_games
         self.update_threshold = update_threshold
-        self.replay_table = deque(maxlen=memory_size)
-        self.min_train_capacity = memory_size/2
 
-        self._train_thread = threading.Thread(target=self._train_process())
+        self.replay_states = np.zeros([memory_size, *[dim for dim in self._state_shape]])
+        self.replay_policies = np.zeros([memory_size, self._n_policies])
+        self.replay_rewards = np.zeros(memory_size)
 
-        self.datapoint_added = threading.Event()
-        self._stop_optimization = threading.Event()
+        self.replay_maxlen = memory_size
+        self._replay_index = 0
+        self.min_train_capacity = memory_size // 2
+
+        self._train_thread = threading.Thread(target=self._train_process)
+        self.batch_size = batch_size
+
+        # For threading
+        self.replay_ready = threading.Event()
+        self._optimize_event = threading.Event()
+        self._exit_thread = threading.Event()
 
         if optimize:
+            self._optimize_event.set()
             self._train_thread.start()
 
         self.temperature_schedule = SortedDict(temperature_schedule)
+        atexit.register(self._cleanup)
 
 
     def start_optimization(self):
-        self._stop_optimization.clear()
+        self._exit_thread.clear()
+        self._optimize_event.set()
 
     def halt_optimization(self):
-        self._stop_optimization.set()
+        self._optimize_event.clear()
+
+    def stop_optimization(self):
+        self.optimize_event.clear()
+        self._exit_thread.set()
+
+    def _initialize_models(self):
+        self.model._make_predict_function()
+
+        self._next_model._make_predict_function()
+        self._next_model._make_test_function()
+        self._next_model._make_train_function()
+
+    def _cleanup(self):
+        self._exit_thread.set()
+        self._train_thread.join()
 
     def action_choice(self, node, move_number=None):
         if move_number:
@@ -127,50 +170,95 @@ class NNPolicyManager(BasePolicyManager):
         else:
             return zero_temperature_choice(node)
 
-
-    def rollout(self, node):
+    def rollout(self, node, env):
         # We'll just use the selection policy here.
-        return self.selection(node, root=False)
+        return self.selection(node, env, root=False)
 
-    def selection(self, node, root=False):
+    def selection(self, node, env, root=False):
         """Uses PUCT to determine selected action."""
-        probabilities = self.model.predict(node.state)
+        actions = env.actions
+        probabilities = self.nn_policy_from_node(node)
         # Add a little noise to the root node to add exploration
         if root:
-            probabilities = (1-self.epsilon)*probabilities + self.epsilon*dirichlet(probabilities)
+            probabilities = ((1-self.epsilon)*probabilities
+                              + self.epsilon*np.random([self.alpha]*len(probabilities)))
 
-        return puct(node, probabilities, self.C)
+        pi = puct(node, probabilities, self.C)
+        # Get the best valid action
+        return actions[pi[actions].argmax()]
+
+
+    def nn_policy_from_node(self, node):
+        # Single prediction
+        X = np.expand_dims(node.state, axis=0)
+        # If the model wants convolutional layers
+        # But we only have M X N, make it M X N X 1
+        if X.ndim == 3 and self._input_dims == 4:
+            X = X[:, :, :, np.newaxis]
+
+        return self.model.predict(X)[0][0]
 
 
     def update(self, node, reward):
+        self._logger.info("Adding state to replay table")
+        i = self._replay_index % self.min_train_capacity
         # We add the node to the replay table
-        edge_values = [edge.value for edge in node.edges.values()]
-        self.replay_table.append([node.state, edge_values, reward])
-        # Trigger datapoint added event
-        self.datapoint_added.set()
-        self.datapoint_added.clear()
+        edge_values = [node[i].value for i in range(self._n_policies)]
 
+
+        self.replay_states[i] = node.state
+        self.replay_policies[i] = edge_values
+        self.replay_rewards[i] = reward
+
+        self._replay_index += 1
+        # Trigger datapoint added event
+        if not self.replay_ready.is_set() and self._replay_index > self.min_train_capacity:
+            self._logger.info("Replay Table Ready")
+            self.replay_ready.set()
 
     def _train_process(self):
-        replay = self.replay_table # Shortcut
-        min_capacity = self.min_capacity / 2
-        while not self._stop_optimization.is_set():
-            self._nn_logger.debug("Waiting for data point")
-            self.datapoint_added.wait()
-            while len(replay_table) > replay.maxlen/2
-                X, y1, y2 = np.random.choice(self.replay_table, self.batch_size, replace=False)
-                history = self._next_model.fit(X, [y1, y2], initial_epoch=self.training_step)
-                self._nn_logger.info(history)
+        # Shortcuts
+        self._nn_logger.info("Starting Training Thread")
+        min_capacity = self.min_train_capacity / 2
+        batch_size = self.batch_size
+        while not self._exit_thread.is_set():
+            try:
+                while self._optimize_event.is_set():
+                    self._nn_logger.info("Waiting for more data")
+                    self.replay_ready.wait()
+                    while (self._optimize_event.is_set()):
 
-        self.checkpoint += self.checkpoint_interval
-        self._next_model.save(f'checkpoint {self.checkpoint}')
-        self.simulate()
+                        idx = idx = np.random.randint(
+                            min(self._replay_index, self.replay_maxlen),
+                            size=batch_size
+                        )
+
+                        X = self.replay_states[idx]
+                        y1 = self.replay_policies[idx]
+                        y2 = self.replay_rewards[idx]
+
+                        history = self._next_model.fit(X, [y1, y2], initial_epoch=self._training_step)
+                        self._nn_logger.info(history)
+
+                        self._training_step += 1
+                        if self._training_step == self.checkpoint:
+                            self.checkpoint += self.checkpoint_interval
+                            self._next_model.save(f'checkpoint {self.checkpoint}')
+                            eval_thread = threading.Thread(target=self.evaluation)
+                            eval_thread.start()
+                            eval_thread.join()
+                    self._optimize_event.wait()
+            except Exception as e:
+                self._nn_logger.error(f"Train Process Crashed: {e}")
+                sys.exit(0)
 
 
     def evaluation(self):
         """Runs a tournament between two MCTS agents. If the next neural network
         functions better as a rollout policy than the current one, we update
         the policy so that it's using the new one."""
+        self._logger.info("Running Evaluation at timestep {self._training_step}")
+
         if not self.simulator:
             raise ValueError("Cannot run NNPolicyManager in training mode without a simulator")
 
@@ -183,7 +271,7 @@ class NNPolicyManager(BasePolicyManager):
                 alpha=self.alpha,
                 C=self.C,
                 temperature=1e-99,
-                testing=True))
+                optimize=False))
 
         next_mcts = MCTS(
             env,
@@ -192,11 +280,12 @@ class NNPolicyManager(BasePolicyManager):
                 alpha=self.alpha,
                 C=self.C,
                 temperature=1e-99,
-                testing=True))
+                optimize=False))
 
         results = self.simulator.simulate([current_agent, next_agent], n=validation_games)
         # TODO: If next agent won more than win_threshold percent, switch models
         if results[2]['wins']/self.validation_games > self.update_threshold:
+            self.info("New model wins! Updating threshold")
             self.model = self._next_model.clone()
 
 class ZeroPolicyManager(NNPolicyManager):
