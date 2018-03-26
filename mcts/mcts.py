@@ -1,8 +1,8 @@
 import xxhash
 import logwood
 import numpy as np
-from utils import ucb1
-from policymanager import DefaultPolicyManager
+from .utils import ucb1
+from .policymanagers import DefaultPolicyManager
 import datetime
 from sortedcontainers.sorteddict import SortedDict
 from copy import deepcopy

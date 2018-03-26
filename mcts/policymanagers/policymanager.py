@@ -1,18 +1,16 @@
+from ..utils import ucb1, puct, zero_temperature_choice
+from ..simulator.simulator import Simulator
+
 from abc import ABC, abstractmethod
-import asyncio
+import atexit
 from collections import deque
 import logwood
-from utils import ucb1, puct
+import numpy as np
 from numpy.random import choice
 from scipy.stats import dirichlet
-import threading
-from queue import Queue
-from simulator.simulator import Simulator
 from sortedcontainers import SortedDict
-from utils import zero_temperature_choice
-import atexit
 import sys
-import numpy as np
+import threading
 
 class BasePolicyManager(ABC):
     """
@@ -26,16 +24,16 @@ class BasePolicyManager(ABC):
         self._logger = logwood.get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def action_choice(self, node):
+    def action_choice(self, node, *args):
         """This policy determines the action to be taken after MCTS has finished."""
 
     @abstractmethod
-    def rollout(self, node):
+    def rollout(self, node, *args):
         """This policy determines what action is taken in the expansion and
         simulation phases of the MCTS."""
 
     @abstractmethod
-    def selection(self, node):
+    def selection(self, node, *args):
         """This policy determines what action is taken during the selection
         phase of the MCTS."""
 
@@ -52,17 +50,17 @@ class DefaultPolicyManager(BasePolicyManager):
     An MCTS object using this policy manager will use random rollout and
     UCB1 selection.
     """
-    def __init__(self, ucb1):
+    def __init__(self, C=1.41):
         super(DefaultPolicyManager, self).__init__()
         self.C = C
 
-    def action_choice(self, node):
+    def action_choice(self, node, **kwargs):
         return node.most_visited_child()
 
-    def rollout(self, node):
+    def rollout(self, node, env):
         return choice(env.actions)
 
-    def selection(self, node):
+    def selection(self, node, env):
         return ucb1(node)
 
     def update(self, node, reward):
