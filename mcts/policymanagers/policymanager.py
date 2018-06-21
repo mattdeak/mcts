@@ -61,7 +61,7 @@ class DefaultPolicyManager(BasePolicyManager):
         return choice(env.actions)
 
     def selection(self, node, env):
-        return ucb1(node)
+        return ucb1(node, env.actions)
 
     def update(self, node, reward):
         pass
@@ -85,14 +85,12 @@ class NNPolicyManager(BasePolicyManager):
         """
     def __init__(self, model, environment, checkpoint=1000, validation_games=400,
                     update_threshold=0.55, memory_size=10, alpha=0.03,
-                    epsilon=0.25, C=1.41, optimize=True,
-                    temperature_schedule={0:1e-2}, batch_size=4, training=False):
+                    epsilon=0.25, C=1.41, temperature_schedule={0:1e-2}, batch_size=4, training=False):
         super(NNPolicyManager, self).__init__()
         self._nn_logger = logwood.get_logger(self.__class__.__name__ + '|Network')
 
         self._next_model = model
         self.model = model.clone()
-
 
         self._initialize_models()
         self._input_dims = model.input.shape.ndims
@@ -101,8 +99,6 @@ class NNPolicyManager(BasePolicyManager):
         self.C = C
 
         self._training = training
-
-
 
         self._state_shape = environment.state.shape
         self._n_policies = environment.action_space
@@ -126,29 +122,7 @@ class NNPolicyManager(BasePolicyManager):
         self._train_thread = threading.Thread(target=self._train_process)
         self.batch_size = batch_size
 
-        # For threading
-        self.replay_ready = threading.Event()
-        self._optimize_event = threading.Event()
-        self._exit_thread = threading.Event()
-
-        if optimize:
-            self._optimize_event.set()
-            self._train_thread.start()
-
         self.temperature_schedule = SortedDict(temperature_schedule)
-        atexit.register(self._cleanup)
-
-
-    def start_optimization(self):
-        self._exit_thread.clear()
-        self._optimize_event.set()
-
-    def halt_optimization(self):
-        self._optimize_event.clear()
-
-    def stop_optimization(self):
-        self.optimize_event.clear()
-        self._exit_thread.set()
 
     def _initialize_models(self):
         self.model._make_predict_function()
@@ -156,10 +130,6 @@ class NNPolicyManager(BasePolicyManager):
         self._next_model._make_predict_function()
         self._next_model._make_test_function()
         self._next_model._make_train_function()
-
-    def _cleanup(self):
-        self._exit_thread.set()
-        self._train_thread.join()
 
     def action_choice(self, node, move_number=None):
         if move_number:
@@ -203,7 +173,6 @@ class NNPolicyManager(BasePolicyManager):
         # We add the node to the replay table
         edge_values = [node[i].value for i in range(self._n_policies)]
 
-
         self.replay_states[i] = node.state
         self.replay_policies[i] = edge_values
         self.replay_rewards[i] = reward
@@ -214,41 +183,37 @@ class NNPolicyManager(BasePolicyManager):
             self._logger.info("Replay Table Ready")
             self.replay_ready.set()
 
+
     def _train_process(self):
         # Shortcuts
         self._nn_logger.info("Starting Training Thread")
         min_capacity = self.min_train_capacity / 2
         batch_size = self.batch_size
-        while not self._exit_thread.is_set():
-            try:
-                while self._optimize_event.is_set():
-                    self._nn_logger.info("Waiting for more data")
-                    self.replay_ready.wait()
-                    while (self._optimize_event.is_set()):
+        try:
+            self._nn_logger.info("Waiting for more data")
+            self.replay_ready.wait()
+            while (self._optimize_event.is_set()):
 
-                        idx = idx = np.random.randint(
-                            min(self._replay_index, self.replay_maxlen),
-                            size=batch_size
-                        )
+                idx = np.random.randint(
+                    min(self._replay_index, self.replay_maxlen),
+                    size=batch_size
+                )
 
-                        X = self.replay_states[idx]
-                        y1 = self.replay_policies[idx]
-                        y2 = self.replay_rewards[idx]
+                X = self.replay_states[idx]
+                y1 = self.replay_policies[idx]
+                y2 = self.replay_rewards[idx]
 
-                        history = self._next_model.fit(X, [y1, y2], initial_epoch=self._training_step)
-                        self._nn_logger.info(history)
+                history = self._next_model.fit(X, [y1, y2], initial_epoch=self._training_step)
+                self._nn_logger.info(history)
 
-                        self._training_step += 1
-                        if self._training_step == self.checkpoint:
-                            self.checkpoint += self.checkpoint_interval
-                            self._next_model.save(f'checkpoint {self.checkpoint}')
-                            eval_thread = threading.Thread(target=self.evaluation)
-                            eval_thread.start()
-                            eval_thread.join()
-                    self._optimize_event.wait()
-            except Exception as e:
-                self._nn_logger.error(f"Train Process Crashed: {e}")
-                sys.exit(0)
+                self._training_step += 1
+                if self._training_step == self.checkpoint:
+                    self.checkpoint += self.checkpoint_interval
+                    self._next_model.save(f'checkpoint {self.checkpoint}')
+ 
+        except Exception as e:
+            self._nn_logger.error(f"Train Process Crashed: {e}")
+            sys.exit(0)
 
 
     def evaluation(self):

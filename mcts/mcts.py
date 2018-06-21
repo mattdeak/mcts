@@ -123,8 +123,6 @@ class MCTS:
             self._logger.info(f"Adding ID {self.current.id} to history")
             self.game_history.append(self.current.id)
 
-
-
         if self.terminal:
             raise ValueError("Game environment is terminal. Cannot take action.")
         begin = datetime.datetime.utcnow()
@@ -258,5 +256,5 @@ class MCTS:
                 raise ValueError(f"Can't create node for state {state} - no player specified")
 
             node = MCTNode(unique_id, state, player)
-            self.nodes[unique_id] = deepcopy(node)
+            self.nodes[unique_id] = node
             return node

@@ -1,11 +1,13 @@
 import numpy as np
 
-def ucb1(node, C=1.41):
+def ucb1(node, actions, C=1.41):
     """Returns an action that maximizes the UCB1 formula"""
     edges = node.edges
-    log_visit_count = np.log(sum([edge.visit_count for edge in edges.values()]))
+    epsilon = 1e-5 # So we can take the log of zero-visit counts
+    
+    log_visit_count = np.log(sum([node[action].visit_count + epsilon for action in actions]))
 
-    ucb1_values = [[action, edge.value + C*np.sqrt(log_visit_count/edge.visit_count)] for action, edge in edges.items()]
+    ucb1_values = [[action, node[action].value + C*np.sqrt(log_visit_count/(node[action].visit_count + epsilon))] for action in actions]
     action, value = max(ucb1_values, key=lambda x: x[1])
     return action
 
@@ -26,7 +28,6 @@ def puct(node, priors, C=1.41):
         edge = node[i]
 
         qu = edge.value + C * prior * root_N / (edge.visit_count + 1e-5)
-
         qus[i] = qu
 
     return qus
