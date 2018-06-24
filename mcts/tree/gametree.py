@@ -20,7 +20,7 @@ class Node:
     
     This class stores the state information in the game tree. Each node will contain a list
     of edges upon being expanded."""
-    def __init__(self, state, player):
+    def __init__(self, state, player=None):
         self.id = xxhash.xxh64(state_id).digest() # Used to identify state
         self.state = state
         self.player = player
@@ -52,9 +52,21 @@ class GameTree:
         node = Node(state)
         self.nodes[parent_id][action].evaluate(node)
 
-    def get(self, node_id):
+    def get_by_id(self, node_id):
         """Retrieves a node by the node ID"""
         return self.nodes[node_id]
+
+    def get_by_state(self, state):
+        state_id = xxhash.xxh64(state).digest()
+
+        node = self.nodes.get(state_id)
+        if node:
+            return node
+
+        else:
+            node = Node(state)
+            self.nodes[state_id] = node
+            return node
 
     def reset(self):
         self.nodes = {}
