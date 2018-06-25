@@ -6,7 +6,7 @@ class RandomChoice:
         pass
 
     def __call__(self, node, environment):
-        return np.random.choice(environment.valid_actions)
+        return np.random.choice(environment.actions)
 
 class RandomUnvisited:
 
@@ -15,9 +15,9 @@ class RandomUnvisited:
             unvisited_actions = [a for a in node.edges if a.n == 0]
             return np.random.choice(
                 np.intersect(
-                    actions, environment.valid_actions
+                    actions, environment.actions
                     )
                 )
         # If the node is a leaf node
         else:
-            return environment.valid_actions
+            return environment.actions

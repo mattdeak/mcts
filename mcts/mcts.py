@@ -4,25 +4,26 @@ import numpy as np
 import datetime
 from sortedcontainers.sorteddict import SortedDict
 from copy import deepcopy
-from tree.gametree import GameTree
-
+from .tree.gametree import GameTree
 
 
 class MCTS:
     def __init__(self, environment, action_policy, selection_policy, rollout_policy,
-                update_policy, calculation_time):
+                simulation_policy, update_policy, calculation_time):
         self.tree = GameTree()
        
         self.environment = environment
         
-        
         self.choose = action_policy
         self.select = selection_policy
         self.rollout = rollout_policy
-        self.simulation_policy = simulation_policy
-        self.update_policy = update_policy
+        self.simulate = simulation_policy
+        self.update = update_policy
+        self.update.add_tree(self.tree)
 
         self.calculation_time = calculation_time
+
+        self.reset()
         
 
     @property
@@ -33,15 +34,31 @@ class MCTS:
     def calculation_time(self, seconds):
         self._calculation_time = datetime.timedelta(seconds=seconds)
 
-    def reset():
+    def reset(self):
         self.terminal = False
         self.game_history = []
         self.tree.reset()
     
     def act(self):
         state = self.environment.state
-        player = self.environment.last_player
-        self.current = 
+        player = self.environment.player
+        
+        current = self.tree.get_by_state(state)
+
+        if self.terminal:
+            raise ValueError("Game environment is terminal. Cannot take action.")
+        begin = datetime.datetime.utcnow()
+
+        # Run MCTS for the calculation window
+        games_played = 0
+
+        while (datetime.datetime.utcnow() - begin < self._calculation_time):
+            self.run(current)
+            games_played += 1
+
+        # Act in the environment
+        action = self.choose(current)
+        current, reward, done = self._step(current, action, self.environment)
 
 
     def run(self, root):
@@ -52,18 +69,28 @@ class MCTS:
         done = False
 
         # Selection Phase
-        while not done and not current.is_leaf():
-            action = self.selection_policy(current, env_clone)
+        while not done and not current.expanded:
+            action = self.select(current, env_clone)
+            current, reward, done = self._step(current, action, env_clone)
             self.history.append(current.id)
 
         # Expansion Phase
         if not done:
             self.tree.expand(env_clone.state, env_clone.valid_actions)
-            action = self.rollout_policy(current, env_clone)
+            action = self.rollout(current, env_clone)
+            current, reward, done = self._step(current, action, env_clone)
+            self.history.append(current.id)
 
         # Simulation Phase
         if not done:
-            current, reward, done = self.simulation_policy(current, env_clone)
+            _, reward, done = self.simulate(current, env_clone)
 
         # Update Phase
-        self.update_policy(current, env_clone, winner, reward, history)
+        self.update(env_clone, reward, history)
+
+    def _step(self, current, action, environment):
+        """Takes a step in the environment"""
+        observation, reward, done = environment.step(action)
+
+        next_node = self.tree.evaluate(current.id, action, observation)
+        return next_node, reward, done

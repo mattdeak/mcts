@@ -1,4 +1,5 @@
-from sortedcontainers import SortedList()
+from sortedcontainers import SortedList
+import xxhash
 
 class Edge:
     """The edge class for the game tree.
@@ -21,7 +22,7 @@ class Node:
     This class stores the state information in the game tree. Each node will contain a list
     of edges upon being expanded."""
     def __init__(self, state, player=None):
-        self.id = xxhash.xxh64(state_id).digest() # Used to identify state
+        self.id = xxhash.xxh64(state).digest() # Used to identify state
         self.state = state
         self.player = player
         self.expanded = False
@@ -33,7 +34,7 @@ class Node:
         if priors:
             self.edges = [Edge(actions[i], priors[i]) for i in range(len(actions))]
         else:
-            self.edges = [Edge(action) for action in actions)]
+            self.edges = [Edge(action) for action in actions]
         self.expanded = True
         
     def __hash__(self):
@@ -48,9 +49,19 @@ class GameTree:
         self.nodes = {}
         
     def evaluate(self, parent_id, action, state):
-        """Adds a node to the node tree"""
-        node = Node(state)
-        self.nodes[parent_id][action].evaluate(node)
+        """Adds a node to the node tree if 
+        the node is not already present
+        
+        @returns node: Node added to tree"""
+        node = self.get_by_state(state)
+
+        # Evaluate the state-action pair given by
+        # parent_id, action if this pair has not already
+        # been evaluated.
+        if not self.nodes[parent_id][action].evaluated:
+            self.nodes[parent_id][action].evaluate(node)
+
+        return node
 
     def get_by_id(self, node_id):
         """Retrieves a node by the node ID"""
