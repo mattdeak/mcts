@@ -9,9 +9,10 @@ class UCB1:
     def __call__(self, node, environment):
 
         actions = environment.actions
+        epsilon = 1e-5
 
         log_n = np.log(sum([node[action].n + epsilon for action in actions]))
-        ucb1_values = [[action, node[action].value + self.C*np.sqrt(log_n/(node[action].n + epsilon))] for action in actions]
+        ucb1_values = [[action, node[action].q + self.C*np.sqrt(log_n/(node[action].n + epsilon))] for action in actions]
         action, value = max(ucb1_values, key=lambda x: x[1])
         return action
 

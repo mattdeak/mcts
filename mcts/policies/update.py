@@ -1,3 +1,5 @@
+import numpy as np
+
 class Vanilla:
 
     def add_tree(self, tree):
@@ -11,12 +13,12 @@ class Vanilla:
 
         # TODO: Handle for non 2-player games
         if winner == None:
-            winner = np.random.randint(clone_env.n_players)
+            winner = np.random.randint(environment.n_players)
 
             reward = np.random.randint(2)
 
-        for node_id in history:
+        for node_id, action in history:
             node = self.tree.get_by_id(node_id)
-            node.n += 1
-            if node.player == node.winner:
-                node.w += 1
+            node[action].n += 1
+            if node.player == environment.winner:
+                node[action].w += 1

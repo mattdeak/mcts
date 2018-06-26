@@ -9,12 +9,20 @@ class Edge:
     def __init__(self, action, prior=0):
         self.action = action
         self.n = 0
-        self.q = 0
+        self.w = 0
         self.p = prior
+        self.evaluated = False
 
     def evaluate(self, node):
         self.evaluated = True
         self.node = node
+
+    @property
+    def q(self):
+        if self.n == 0:
+            return 0
+
+        return self.w / self.n
 
 class Node:
     """The Node class for the game tree.
@@ -32,9 +40,9 @@ class Node:
 
     def expand(self, actions, priors=[]):
         if priors:
-            self.edges = [Edge(actions[i], priors[i]) for i in range(len(actions))]
+            self.edges = {actions[i] : Edge(actions[i], priors[i]) for i in range(len(actions))}
         else:
-            self.edges = [Edge(action) for action in actions]
+            self.edges = {action : Edge(action) for action in actions}
         self.expanded = True
         
     def __hash__(self):
@@ -43,17 +51,20 @@ class Node:
     def __eq__(self, other):
         return self.id == other.id
 
+    def __getitem__(self, action):
+        return self.edges[action]
+
 class GameTree:
     """Contains the game tree for the MCTS"""
     def __init__(self):
         self.nodes = {}
         
-    def evaluate(self, parent_id, action, state):
+    def evaluate(self, parent_id, action, state, player=None):
         """Adds a node to the node tree if 
         the node is not already present
         
         @returns node: Node added to tree"""
-        node = self.get_by_state(state)
+        node = self.get_by_state(state, player=player)
 
         # Evaluate the state-action pair given by
         # parent_id, action if this pair has not already
@@ -67,7 +78,7 @@ class GameTree:
         """Retrieves a node by the node ID"""
         return self.nodes[node_id]
 
-    def get_by_state(self, state):
+    def get_by_state(self, state, player=None):
         state_id = xxhash.xxh64(state).digest()
 
         node = self.nodes.get(state_id)
@@ -75,14 +86,15 @@ class GameTree:
             return node
 
         else:
-            node = Node(state)
+            node = Node(state, player=player)
             self.nodes[state_id] = node
             return node
 
     def reset(self):
         self.nodes = {}
 
-    def expand(self, state_id, actions):
+    def expand(self, state, actions):
+        state_id = xxhash.xxh64(state).digest()
         # Flag the expanded node
         self.nodes[state_id].expand(actions)
 

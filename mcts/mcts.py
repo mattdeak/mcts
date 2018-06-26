@@ -64,22 +64,24 @@ class MCTS:
     def run(self, root):
         env_clone = self.environment.clone()
         history = []
-        history.append(root.id)
         current = root
         done = False
 
-        # Selection Phase
-        while not done and not current.expanded:
+        # Selection Phase: Use selection policy to traverse
+        # game tree until a leaf node (unexpanded) is reached.
+        while not done and current.expanded:
             action = self.select(current, env_clone)
-            current, reward, done = self._step(current, action, env_clone)
-            self.history.append(current.id)
+            history.append([current.id, action])
+            current, reward, done = self._step(current, action, 
+                                    env_clone, player=env_clone.player)
 
         # Expansion Phase
         if not done:
-            self.tree.expand(env_clone.state, env_clone.valid_actions)
+            self.tree.expand(env_clone.state, env_clone.actions)
             action = self.rollout(current, env_clone)
-            current, reward, done = self._step(current, action, env_clone)
-            self.history.append(current.id)
+            history.append([current.id, action])
+            current, reward, done = self._step(current, action, 
+                                    env_clone, player=env_clone.player)
 
         # Simulation Phase
         if not done:
@@ -88,9 +90,9 @@ class MCTS:
         # Update Phase
         self.update(env_clone, reward, history)
 
-    def _step(self, current, action, environment):
+    def _step(self, current, action, environment, player=None):
         """Takes a step in the environment"""
         observation, reward, done = environment.step(action)
 
-        next_node = self.tree.evaluate(current.id, action, observation)
+        next_node = self.tree.evaluate(current.id, action, observation, player=player)
         return next_node, reward, done
