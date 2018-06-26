@@ -1,4 +1,5 @@
-class MostVisited:
+from ..base.policy import BasePolicy
+class MostVisited(BasePolicy):
     """Chooses the most visited child node of a given node."""
 
     def __call__(self, node):

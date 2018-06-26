@@ -43,7 +43,7 @@ class MCTS:
         state = self.environment.state
         player = self.environment.player
         
-        current = self.tree.get_by_state(state)
+        current = self.tree.get_by_state(state, player=player)
 
         if self.terminal:
             raise ValueError("Game environment is terminal. Cannot take action.")
@@ -73,7 +73,7 @@ class MCTS:
             action = self.select(current, env_clone)
             history.append([current.id, action])
             current, reward, done = self._step(current, action, 
-                                    env_clone, player=env_clone.player)
+                                    env_clone)
 
         # Expansion Phase
         if not done:
@@ -81,7 +81,7 @@ class MCTS:
             action = self.rollout(current, env_clone)
             history.append([current.id, action])
             current, reward, done = self._step(current, action, 
-                                    env_clone, player=env_clone.player)
+                                    env_clone)
 
         # Simulation Phase
         if not done:
@@ -90,9 +90,10 @@ class MCTS:
         # Update Phase
         self.update(env_clone, reward, history)
 
-    def _step(self, current, action, environment, player=None):
+    def _step(self, current, action, environment):
         """Takes a step in the environment"""
         observation, reward, done = environment.step(action)
+        player = environment.player
 
         next_node = self.tree.evaluate(current.id, action, observation, player=player)
         return next_node, reward, done

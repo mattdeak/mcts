@@ -1,10 +1,12 @@
+from ..base.policy import BasePolicy
 import numpy as np
 
-class UCB1:
+class UCB1(BasePolicy):
     """UCB1 Policy Class. Works in the selection phase to balance
     exploration and exploitation."""
     def __init__(self, C=1.41):
         self.C = C
+        super().__init__()
 
     def __call__(self, node, environment):
 
@@ -17,15 +19,15 @@ class UCB1:
         return action
 
 
-class PUCT:
+class PUCT(BasePolicy):
 
-    def __init__(self, C, prior_func):
+    def __init__(self, C=1.41):
         self.C = C
-        self.prior_func = prior_func
+        super().__init__()
 
     def __call__(self, node, environment):
-        children = node.children
-        priors = prior_func(environment.state)
+        edges = node.edges
+        priors = [action.p for action in children.values()]
 
         root_N = np.sqrt(np.sum([edge.n for edge in children.values()]))
         qus = np.zeros(len(priors))
