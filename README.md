@@ -1,7 +1,13 @@
 # mcts
 A library for easily building Monte Carlo Tree Search models.
 
-### Instructions
+### Installation
+Simply pip install this git repo with the following code
+```
+pip install git+https://github.com/mattdeak/mcts.git
+```
+
+### Usage Instructions
 Below is example code of how to configure a Monte Carlo Tree Search model with this library.
 ```
 # Import the relevant policies
