@@ -32,6 +32,11 @@ Each model is composed of five different policies.
  Note that the simulation policy also requires a `rollout` policy. This will determine which policy the model uses to select actions in the simulation phase.
  * The `update` policy handles updating the nodes at the end of a single monte-carlo tree search.
  
+ To _act_ in an environment, simply call the `act()` method. This will run an MCTS for the number of seconds provided in `calculation_time`, and then choose the best action according to the `action` policy. E.g
+ ```
+ mcts.act()
+ ```
+ 
 ### Required Environment API
 The MCTS is designed to be flexible so that it can be easily plugged into suitable game environments. Any environment must have the following attributes:
 * A `state` attribute, which describes the current state. It's recommended to use a numpy array here.
