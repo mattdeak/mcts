@@ -44,13 +44,17 @@ Each model is composed of five different policies.
  ```
  
 ### Required Environment API
-The MCTS is designed to be flexible so that it can be easily plugged into suitable game environments. Any environment must have the following attributes:
-* A `state` attribute, which describes the current state. It's recommended to use a numpy array here.
+The MCTS is designed to be flexible so that it can be easily plugged into suitable game environments. The required api is inspired heavily by the OpenAI `gym` API, but which a few modifications:
+* A `state` attribute, which describes the current state. It's recommended to use a numpy array.
 * An `actions` attribute. This must return a list of _valid actions_ in the current game state.
 * A `player` attribute which returns the current player. This can be any unique identifier.
-* An `n_players` attribute which returns the number of players in the game.
+* An `n_players` attribute (int) which returns the number of players in the game.
 * A `clone` method which clones the environment.
 * A `winner` attribute which provides the identity of the winner of the game.
-* A `terminal` attribute which flags whether or not the game is in a terminal state.
+* A `terminal` attribute (bool) which flags whether or not the game is in a terminal state.
+* A `step` method which takes an `action`. This will perform the action in the environment and return:
+ * observation - the state of the next 
+ * reward - The reward for taking that action
+ * done - A boolean which is `true` if the action led to a terminal state and `false` otherwise.
 
 Currently only policies for a basic MCTS model are supported, but more policies are in development (along with neural network integration).
