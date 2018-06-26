@@ -53,8 +53,8 @@ The MCTS is designed to be flexible so that it can be easily plugged into suitab
 * A `winner` attribute which provides the identity of the winner of the game.
 * A `terminal` attribute (bool) which flags whether or not the game is in a terminal state.
 * A `step` method which takes an `action`. This will perform the action in the environment and return:
- * observation - the state of the next 
- * reward - The reward for taking that action
- * done - A boolean which is `true` if the action led to a terminal state and `false` otherwise.
+  * observation - the state of the next 
+  * reward - The reward for taking that action
+  * done - A boolean which is `true` if the action led to a terminal state and `false` otherwise.
 
 Currently only policies for a basic MCTS model are supported, but more policies are in development (along with neural network integration).
