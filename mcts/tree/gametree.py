@@ -35,16 +35,12 @@ class Node:
         self.player = player
         self.expanded = False
 
-    def __hash__(self):
-        return self.id
-
-    def expand(self, actions, priors=[]):
-        if priors:
-            self.edges = {actions[i] : Edge(actions[i], priors[i]) for i in range(len(actions))}
-        else:
+    def set_edges(self, actions, priors=[]):
+        if priors == []:
             self.edges = {action : Edge(action) for action in actions}
-        self.expanded = True
-        
+        else:
+            self.edges = {actions[i] : Edge(actions[i], priors[i]) for i in range(len(actions))}
+
     def __hash__(self):
         return self.id
 
@@ -92,10 +88,5 @@ class GameTree:
 
     def reset(self):
         self.nodes = {}
-
-    def expand(self, state, actions):
-        state_id = xxhash.xxh64(state).digest()
-        # Flag the expanded node
-        self.nodes[state_id].expand(actions)
 
 

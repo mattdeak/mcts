@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='mcts',
-    version='0.1',
+    version='0.2',
     packages=find_packages(),
     install_requires=[
         'sortedcontainers>=1.5.9',

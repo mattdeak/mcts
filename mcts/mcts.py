@@ -8,23 +8,44 @@ from .tree.gametree import GameTree
 
 
 class MCTS:
-    def __init__(self, environment, action_policy, selection_policy, rollout_policy,
-                simulation_policy, update_policy, calculation_time):
+
+    supported_policy_types = ['action','selection','expansion'
+                             ,'simulation' ,'update','expansion_rollout']
+
+    def __init__(self, environment, calculation_time=5):
         self.tree = GameTree()
        
         self.environment = environment
-        
-        self.choose = action_policy
-        self.select = selection_policy
-        self.rollout = rollout_policy
-        self.simulate = simulation_policy
-        self.update = update_policy
-        self.update.add_tree(self.tree)
-
         self.calculation_time = calculation_time
+        self.configured = False
 
         self.reset()
-        
+
+    def build(self, policy_dict):
+        for key, policy in policy_dict.items():
+            if key not in self.supported_policy_types:
+                raise ValueError(f"{key} is not a supported policy type.")
+            elif key == 'action':
+                self.choose = policy
+            elif key == 'selection':
+                self.select = policy
+            elif key == 'expansion':
+                self.expand = policy
+                self.expand.add_tree(self.tree)
+            elif key == 'simulation':
+                self.simulate = policy
+            elif key == 'update':
+                self.update = policy
+                self.update.add_tree(self.tree)
+            elif key == 'expansion_rollout':
+                self.expansion_rollout = policy
+
+        # Check that required policies exist
+        if not self.update or not self.select or not self.expand:
+            raise ValueError("Config dictionary is missing vital policies. selection, expansion and update policies are required.")
+
+        self.configured = True
+             
 
     @property
     def calculation_time(self):
@@ -40,6 +61,8 @@ class MCTS:
         self.tree.reset()
     
     def act(self):
+        assert self.configured, "MCTS must be configured before running."
+
         state = self.environment.state
         player = self.environment.player
         
@@ -62,6 +85,8 @@ class MCTS:
 
 
     def run(self, root):
+        assert self.configured, "MCTS must be configured before running."
+
         env_clone = self.environment.clone()
         history = []
         current = root
@@ -77,14 +102,17 @@ class MCTS:
 
         # Expansion Phase
         if not done:
-            self.tree.expand(env_clone.state, env_clone.actions)
-            action = self.rollout(current, env_clone)
-            history.append([current.id, action])
-            current, reward, done = self._step(current, action, 
-                                    env_clone)
+            self.expand(current, env_clone.actions)
 
-        # Simulation Phase
-        if not done:
+            # Perform another rollout if applicable
+            if self.expansion_rollout:
+                action = self.expansion_rollout(current, env_clone)
+                history.append([current.id, action])
+                current, reward, done = self._step(current, action, 
+                                        env_clone)
+
+        # Simulation Phase if Applicable
+        if not done and self.simulate:
             _, reward, done = self.simulate(current, env_clone)
 
         # Update Phase
