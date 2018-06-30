@@ -1,5 +1,5 @@
 import tempfile, shutil
-from keras.models import model_from_json
+from keras.models import load_model
 
 class BaseNN:
     """The base neural network class for MCTS integration.
@@ -20,16 +20,12 @@ class BaseNN:
     def clone(self):
         """Makes a compiled clone of the current model."""
 
-        # Create temporary files for the model information
-        temp_model = tempfile.TemporaryFile(mode='w+t')
-        temp_weights = tempfile.TemporaryFile(mode='w+t')
-
-        model_json = self.model.to_json()
-        temp.write(model_json)
-
-        self.model.save_weights(temp_weights)
-
-
+        # Save and restore a model 
+        with tempfile.NamedTemporaryFile() as temp:
+            self.model.save(temp.name)
+            clone = load_model(temp.name)
+            
+        clone.name = self.name + '_clone'
         clone.set_weights(self.model.get_weights())
 
         return BaseNN(clone, callbacks=self.callbacks)
