@@ -20,7 +20,6 @@ class UCB1(BasePolicy):
 
 
 class PUCT(BasePolicy):
-
     def __init__(self, C=1.41):
         self.C = C
         super().__init__()
@@ -38,4 +37,4 @@ class PUCT(BasePolicy):
             qu = edge.value + C * prior * root_N / (edge.n + 1e-5)
             qus[i] = qu
 
-        return qus
+        return np.argmax(qus)

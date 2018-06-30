@@ -1,7 +1,6 @@
 from ..base.policy import BasePolicy
 class MostVisited(BasePolicy):
     """Chooses the most visited child node of a given node."""
-
     def __call__(self, node):
         edges = node.edges
         best_action = list(edges.keys())[0]
@@ -13,3 +12,12 @@ class MostVisited(BasePolicy):
                 most_visited = child.n
 
         return best_action
+
+class ProportionalToVisitCount(BasePolicy):
+    """Probabilistically chooses an action with a likelihood that is
+    proportional to that nodes visit count."""
+    def __init__(self, t):
+        self.t = t
+
+    def __call__(self, node):
+        pass

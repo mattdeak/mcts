@@ -75,6 +75,10 @@ class GameTree:
         return self.nodes[node_id]
 
     def get_by_state(self, state, player=None):
+        """Retrieves a node by the associated state.
+        
+        If a node associated to that state does not exist,
+        a node is made and put in the game tree."""
         state_id = xxhash.xxh64(state).digest()
 
         node = self.nodes.get(state_id)
