@@ -10,8 +10,8 @@ class BasePolicy(ABC):
     def __call__(self, node, environment):
         """Call the policy"""
 
-class NodeTrackingPolicy(ABC, BasePolicy):
+class NodeTrackingPolicy(BasePolicy):
 
-    @abstractmethod
     def add_tree(self, tree):
         """Adds the MCTS node-tree for internal reference."""
+        self.tree = tree
