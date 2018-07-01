@@ -5,26 +5,34 @@ import datetime
 from sortedcontainers.sorteddict import SortedDict
 from copy import deepcopy
 from .tree.gametree import GameTree
+from . import SUPPORTED_POLICY_TYPES
+from .builder import ConfigBuilder
 
 
 class MCTS:
 
-    supported_policy_types = ['action','selection','expansion'
-                             ,'simulation' ,'update','expansion_rollout']
-
-    def __init__(self, environment, calculation_time=5):
+    def __init__(self, environment, calculation_time=5, name=None):
         self.tree = GameTree()
-       
+
+        # Configure logger
+        if name == None:
+            name = self.__class__.__name__
+
+        self._logger = logwood.get_logger(name)
         self.environment = environment
         self.calculation_time = calculation_time
+
+        self._builder = ConfigBuilder()
         self.configured = False
 
         self.reset()
 
-    def build(self, policy_dict):
-        for key, policy in policy_dict.items():
-            if key not in self.supported_policy_types:
-                raise ValueError(f"{key} is not a supported policy type.")
+    def build(self, raw_config):
+        config = self._builder.build(raw_config)
+        self.policies = config.values()
+        for key, policy in config.items():
+            if key not in SUPPORTED_POLICY_TYPES:
+                raise ValueError("{} is not a supported policy type.".format(key))
             elif key == 'action':
                 self.choose = policy
             elif key == 'selection':
@@ -67,56 +75,101 @@ class MCTS:
         player = self.environment.player
         
         current = self.tree.get_by_state(state, player=player)
+        self.game_history.append(current.id)
 
         if self.terminal:
             raise ValueError("Game environment is terminal. Cannot take action.")
         begin = datetime.datetime.utcnow()
 
-        # Run MCTS for the calculation window
+        # Information to collect while running search
         games_played = 0
+        max_depth = 0
 
+        # Run MCTS for the calculation window
         while (datetime.datetime.utcnow() - begin < self._calculation_time):
-            self.run(current)
+            depth = self.run(current)
             games_played += 1
+            max_depth = max(depth, max_depth)
+
+        self._logger.info("Searches Run: {} | Max Depth: {}".format(games_played, max_depth))
 
         # Act in the environment
         action = self.choose(current)
         current, reward, done = self._step(current, action, self.environment)
 
+        if done:
+            try:
+                self.terminal(self.game_history, reward, self.environment.winner)
+            except Exception:
+                pass
+            finally:
+                self.reset()
+
 
     def run(self, root):
+        """Runs a single MCTS search based on policies provided during `build`.
+        
+        Arguments:
+            root {mcts.tree.Node} -- The root node to run from
+        
+        Returns:
+            depth -- The depth reached up until the first leaf node
+        """
         assert self.configured, "MCTS must be configured before running."
 
         env_clone = self.environment.clone()
         history = []
         current = root
         done = False
+        depth = 0
+        reward = 0
 
         # Selection Phase: Use selection policy to traverse
         # game tree until a leaf node (unexpanded) is reached.
         while not done and current.expanded:
-            action = self.select(current, env_clone)
+            action = self.select(current)
             history.append([current.id, action])
             current, reward, done = self._step(current, action, 
                                     env_clone)
+            
+            depth += 1
 
         # Expansion Phase
         if not done:
             self.expand(current, env_clone.actions)
+            depth += 1
 
             # Perform another rollout if applicable
-            if self.expansion_rollout:
+            try:
                 action = self.expansion_rollout(current, env_clone)
                 history.append([current.id, action])
                 current, reward, done = self._step(current, action, 
                                         env_clone)
+                depth += 1
+            except Exception:
+                self._logger.debug("No Expansion Rollout Phase")
 
         # Simulation Phase if Applicable
-        if not done and self.simulate:
-            _, reward, done = self.simulate(current, env_clone)
+        try:
+            if not done:
+                _, reward, done = self.simulate(current, env_clone)
+        except Exception:
+            self._logger.debug("No simulation phase")
 
         # Update Phase
         self.update(env_clone, reward, history)
+        return depth
+
+    def set_policy_attribute(self, policy_tuple):
+        """Updates an attribute on all policies that have it.
+        
+        Arguments:
+            policy_tuple {tuple} -- Form of (attr_name, value)
+        """
+        name, value = policy_tuple
+        for policy in self.policies:
+            if hasattr(policy, name):
+                setattr(policy, name, value)
 
     def _step(self, current, action, environment):
         """Takes a step in the environment"""
