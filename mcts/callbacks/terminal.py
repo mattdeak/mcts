@@ -70,6 +70,9 @@ class StagedModelTrainer(NodeTrackingPolicy):
             self._logger.info("Entering the evaluatoin phase.")
             self.evaluate()
 
+            # Reset step count
+            self._current_step = 0
+
         self._current_step += 1
 
     def train(self):
