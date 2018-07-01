@@ -28,11 +28,14 @@ class PUCT(BasePolicy):
         edges = node.edges
 
         root_N = np.sqrt(np.sum([edge.n for edge in edges.values()]))
-        qus = np.zeros(len(edges))
+        qus = {}
 
         for action, edge in edges.items():
 
-            qu = edge.q + C * edge.p * root_N / (edge.n + 1)
-            qus[action] = qu
+            qu = edge.q + self.C * edge.p * root_N / (edge.n + 1)
+            # A little confusing to use the qu value as the key,
+            # But this way is slightly higher performance for our task
+            qus[qu] = action
 
-        return np.argmax(qus)
+        return qus[max(qus)]
+
