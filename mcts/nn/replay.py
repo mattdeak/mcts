@@ -1,9 +1,14 @@
 import numpy as np
+from numpy import random
 
 class BasicReplay:
+    """A basic replay table.
+    
+    Stores state, action-value and state-value information in numpy arrays.
+    Can be used as a generator to randomly select from the replay table."""
 
-    def __init__(self, state_shape, policy_size, capacity=50000, batch_size=8):
-        self.batch_size = 8
+    def __init__(self, state_shape, policy_size, capacity=50000):
+        self.policy_size = policy_size
         self._capacity = 50000
         self._insertion_index = 0
         
@@ -24,14 +29,14 @@ class BasicReplay:
         self._insertion_index += n
         
         
-    def __next__(self):
+    def get_batch(self, batch_size):
         if self._insertion_index == 0:
             ix = 0
         
-        elif self._insertion_index < self.batch_size:
+        elif self._insertion_index < batch_size:
             ix = random.choice(np.minimum(self._insertion_index, self._capacity), size=self._insertion_index, replace=False)
         else:
-            ix = random.choice(np.minimum(self._insertion_index, self._capacity), size=self.batch_size, replace=False)
+            ix = random.choice(np.minimum(self._insertion_index, self._capacity), size=batch_size, replace=False)
         
-        return self._states[ix, ...], [self._action_values[ix, ...], self._state_values[ix, ...]]
+        return self._states[ix, ...], self._action_values[ix, ...], self._state_values[ix, ...]
         

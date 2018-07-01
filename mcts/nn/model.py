@@ -29,7 +29,7 @@ class Model:
         clone.name = self.name + '_clone'
         clone.set_weights(self.model.get_weights())
 
-        return BaseNN(clone, callbacks=self.callbacks)
+        return Model(clone, callbacks=self.callbacks)
 
     def fit(self, X, y, **kwargs):
         return self.model.fit(X, y, callbacks=self.callbacks, **kwargs)

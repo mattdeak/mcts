@@ -75,8 +75,9 @@ class NNEvaluator:
         Returns:
             EvaluationResults -- A results class detailing the game results
         """
-        incumbent = MCTS(self.environment, name='Evaluation Incumbent')
-        challenger = MCTS(self.environment, name='Evaluation Challenger')
+        # TODO: Update config so we can pass the calculation time in there
+        incumbent = MCTS(self.environment, name='Evaluation Incumbent', calculation_time=2)
+        challenger = MCTS(self.environment, name='Evaluation Challenger', calculation_time=2)
 
         self._logger.debug("Building MCTS")
         incumbent.build(self.config)
