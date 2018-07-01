@@ -1,7 +1,7 @@
 from ..base.policy import NodeTrackingPolicy
 import numpy as np
 
-class Vanilla(NodeTrackingPolicy):
+class VanillaUpdate(NodeTrackingPolicy):
     """The update policy that follows vanilla MCTS practices."""
     def __call__(self, environment, reward, history):
         """Updates the nodes in the node tree.
@@ -32,16 +32,17 @@ class ValueUpdate(NodeTrackingPolicy):
 
         # If the environment is terminal then the value is the reward
         if environment.terminal:
-            value = reward
             node.value = reward
 
         for node_id, action in history:
             node = self.tree.get_by_id(node_id)
+            if not node.expanded:
+                raise ValueError("Encountered unexpanded node in history: {}".format(node.state))
             node[action].n += 1
-            if node.player == winner:
-                node[action].w += value
+            if node.player == environment.winner:
+                node[action].w += reward
             else:
-                node[action].w -= value
+                node[action].w -= reward
 
         
 

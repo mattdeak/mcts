@@ -16,8 +16,9 @@ class MostVisited(BasePolicy):
 class ProportionalToVisitCount(BasePolicy):
     """Probabilistically chooses an action with a likelihood that is
     proportional to that nodes visit count."""
-    def __init__(self, t):
+    def __init__(self, t=0.1):
         self.t = t
 
+    # TODO: Implement this
     def __call__(self, node):
         pass
