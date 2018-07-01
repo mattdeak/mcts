@@ -11,7 +11,7 @@ from .builder import ConfigBuilder
 
 class MCTS:
 
-    def __init__(self, environment, calculation_time=5, name=None):
+    def __init__(self, environment, calculation_time=5, terminal_callback = None, name=None):
         self.tree = GameTree()
 
         # Configure logger
@@ -21,6 +21,9 @@ class MCTS:
         self._logger = logwood.get_logger(name)
         self.environment = environment
         self.calculation_time = calculation_time
+        if terminal_callback:
+            self._handle_terminal = terminal_callback
+            self._handle_terminal.add_tree(self.tree)
 
         self._builder = ConfigBuilder()
         self.configured = False
@@ -98,12 +101,10 @@ class MCTS:
         current, reward, done = self._step(current, action, self.environment)
 
         if done:
-            try:
-                self.terminal(self.game_history, reward, self.environment.winner)
-            except Exception:
-                pass
-            finally:
-                self.reset()
+            if hasattr(self, "_handle_terminal"):
+                self._handle_terminal(self.game_history, reward, self.environment.winner)
+
+            self.reset()
 
 
     def run(self, root):
@@ -170,6 +171,17 @@ class MCTS:
         for policy in self.policies:
             if hasattr(policy, name):
                 setattr(policy, name, value)
+
+    def set_terminal_callback(self, callback):
+        self._handle_terminal = callback
+        self._handle_terminal.add_tree(self.tree)
+    
+    def self_play(self, games=100):
+        for i in range(games):
+            self.environment.reset()
+            self.reset()
+            while not self.environment.terminal:
+                self.act()
 
     def _step(self, current, action, environment):
         """Takes a step in the environment"""
