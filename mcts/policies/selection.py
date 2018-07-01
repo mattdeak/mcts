@@ -17,7 +17,7 @@ class UCB1(BasePolicy):
         return action
 
 
-class PUCT(BasePolicy):
+class PUCT:
     """UCB1 Policy Class. Chooses an action probabalistically
     based on the priors and action-values of edges in a node."""
     def __init__(self, C=1.41):
@@ -25,17 +25,18 @@ class PUCT(BasePolicy):
         super().__init__()
 
     def __call__(self, node):
+        
         edges = node.edges
+        arr = np.array([[action, edge.p, edge.n, edge.q] for action, edge in edges.items()])
+        
+        # Softmax the priors
+        arr[:, 1] = 1/(1 + np.exp(arr[:, 1]))
+        # PUCT formula
+        qus = arr[:, 3] + self.C * arr[:, 1] \
+              * np.sqrt(np.sum(arr[:, 2])) \
+              / (arr[:, 2] + 1)
 
-        root_N = np.sqrt(np.sum([edge.n for edge in edges.values()]))
-        qus = {}
+        arr[qus.argmax(), 0]
 
-        for action, edge in edges.items():
-
-            qu = edge.q + self.C * edge.p * root_N / (edge.n + 1)
-            # A little confusing to use the qu value as the key,
-            # But this way is slightly higher performance for our task
-            qus[qu] = action
-
-        return qus[max(qus)]
+        return arr[qus.argmax(), 0].astype(int)
 
