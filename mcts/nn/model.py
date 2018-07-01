@@ -1,7 +1,8 @@
 import tempfile, shutil
+import numpy as np
 from keras.models import load_model
 
-class BaseNN:
+class Model:
     """The base neural network class for MCTS integration.
 
     By default supports initialization with Keras models, but for other frameworks
@@ -37,7 +38,13 @@ class BaseNN:
         return self.model.fit_generator(generator, **kwargs)
 
     def predict(self, X, **kwargs):
+        # If it's a single sample, add a dimension
+        
         return self.model.predict(X, **kwargs)
+
+    def predict_from_node(self, node, **kwargs):
+        X = np.expand_dims(node.state, axis=0)
+        return self.predict(X)
 
     def evaluate(self, X, y):
         return self.model.evaluate(X, y)
