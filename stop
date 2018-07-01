@@ -1,0 +1,4 @@
+#/bin/bash
+
+docker stop mcts
+docker rm mcts

@@ -1,0 +1,2 @@
+#/bin/bash
+docker run -v `pwd`:/notebooks -p 8888:8888 -p 6006:6006 --rm -d -h localhost --name mcts tensorflow/tensorflow:latest-gpu-py3
