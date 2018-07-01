@@ -36,10 +36,17 @@ class Node:
         self.expanded = False
 
     def set_edges(self, actions, priors=[]):
+        """Sets the edges of the node"""
         if priors == []:
             self.edges = {action : Edge(action) for action in actions}
         else:
-            self.edges = {actions[i] : Edge(actions[i], priors[i]) for i in range(len(actions))}
+            self.edges = {actions[i] : Edge(actions[i], prior=priors[i]) for i in range(len(actions))}
+
+    def set_value(self, value):
+        """Sets the value of the node.
+        Not all implementations of MCTS require that nodes have this attribute. Whether or not
+        To use a value will be determined by the expansion policy."""
+        self.value = value
 
     def __hash__(self):
         return self.id
