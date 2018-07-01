@@ -17,13 +17,15 @@ class NNExpansion(NodeTrackingPolicy):
         self.model = model
 
     def __call__(self, node, actions):
-        policy, value = self.model.predict(node.state)
+
+        node.expanded = True
+        policy, value = self.model.predict_from_node(node)
 
         # We only care about the priors for
         # valid actions from the current state
-        valid_policies = policy[actions]
+        valid_priors = policy[0][actions]
 
-        node.set_edges(actions, priors)
-        node.set_value(value)
+        node.set_edges(actions, priors=valid_priors)
+        node.set_value(value[0][0])
         
         
