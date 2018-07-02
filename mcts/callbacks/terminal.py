@@ -34,7 +34,7 @@ class StagedModelTrainer(NodeTrackingPolicy):
         self.evaluation_steps = evaluation_steps
 
     def __call__(self, game_history, reward, winner):
-        self._logger.info("Adding data to replay table")
+        self._logger.info("Data Generation Step: {}".format(self._current_step))
         for node in game_history:
             node = self.tree.get_by_id(node)
             state = node.state

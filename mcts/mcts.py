@@ -94,7 +94,7 @@ class MCTS:
             games_played += 1
             max_depth = max(depth, max_depth)
 
-        self._logger.info("Searches Run: {} | Max Depth: {}".format(games_played, max_depth))
+        self._logger.debug("Searches Run: {} | Max Depth: {}".format(games_played, max_depth))
 
         # Act in the environment
         action = self.choose(current)
