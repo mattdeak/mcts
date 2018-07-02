@@ -27,6 +27,10 @@ class BasicReplay:
         self._state_values[start:end] = state_values
             
         self._insertion_index += n
+
+    @property
+    def size(self):
+        return min(self._insertion_index, self.capacity)
         
         
     def get_batch(self, batch_size):

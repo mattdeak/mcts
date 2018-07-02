@@ -1,8 +1,12 @@
 import tempfile, shutil
 import numpy as np
+import logwood
 from keras.models import load_model
+from keras.callbacks import TensorBoard
+from copy import deepcopy
 
 class Model:
+    n_models = 0
     """The base neural network class for MCTS integration.
 
     By default supports initialization with Keras models, but for other frameworks
@@ -13,9 +17,16 @@ class Model:
 
     Models may also have a value head. This
     """
-    def __init__(self, model, callbacks=[], **kwargs):
+    def __init__(self, model, **kwargs):
+        name = kwargs.get("name")
+        
+        if name:
+            self.name = name
+        else:
+            self.name = self.__class__.__name__ + str(self.n_models)
+
+        self._logger = logwood.get_logger(self.name)
         self.model = model
-        self.callbacks = callbacks
         self.kwargs = kwargs
 
     def clone(self):
@@ -29,25 +40,11 @@ class Model:
         clone.name = self.name + '_clone'
         clone.set_weights(self.model.get_weights())
 
-        return Model(clone, callbacks=self.callbacks)
-
-    def fit(self, X, y, **kwargs):
-        return self.model.fit(X, y, callbacks=self.callbacks, **kwargs)
-
-    def fit_generator(self, generator, **kwargs):
-        return self.model.fit_generator(generator, **kwargs)
-
-    def predict(self, X, **kwargs):
-        # If it's a single sample, add a dimension
-        
-        return self.model.predict(X, **kwargs)
+        return Model(clone)
 
     def predict_from_node(self, node, **kwargs):
         X = np.expand_dims(node.state, axis=0)
         return self.predict(X)
-
-    def evaluate(self, X, y):
-        return self.model.evaluate(X, y)
 
     def __getattr__(self, attr):
         return self.model.__getattribute__(attr)
