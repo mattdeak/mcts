@@ -24,7 +24,7 @@ class TicTacToe:
         return np.stack([layer1, layer2, layer3])
 
     def step(self, action):
-        assert action in self.actions, f"Invalid action {action}"
+        assert action in self.actions, {"Invalid Action: {}".format(action)}
 
         if self.player == 1:
             self._state[action] = 1
