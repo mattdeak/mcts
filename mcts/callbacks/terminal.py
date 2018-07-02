@@ -1,5 +1,7 @@
 from ..base.policy import NodeTrackingPolicy
+from ..utils import softmax
 import numpy as np
+
 
 class StagedModelTrainer(NodeTrackingPolicy):
     """Operates in three stages.
@@ -57,17 +59,18 @@ class StagedModelTrainer(NodeTrackingPolicy):
                 elif node[i].n != 0:
                     action_values[i] = node[i].q
 
-
+            policy = softmax(np.array(action_values))
+            
             if node.player != winner:
                 reward = -reward
             
-            self.replay.add_data(state, action_values, reward)  
+            self.replay.add_data(state, policy, reward)  
 
         if self._current_step > self.generation_steps:
             self._logger.info("Entering the training phase.")
             self.train()
 
-            self._logger.info("Entering the evaluatoin phase.")
+            self._logger.info("Entering the evaluation phase.")
             self.evaluate()
 
             # Reset step count
@@ -91,4 +94,6 @@ class StagedModelTrainer(NodeTrackingPolicy):
         if results.winner == 'challenger':
             self._logger.info("Training Model Wins! Updating generation model.")
             self.generation_model.set_weights(self.training_model.get_weights())
+        else:
+            self._logger.info("Incumbent model wins.")
         
