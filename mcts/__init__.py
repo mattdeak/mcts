@@ -13,6 +13,5 @@ SUPPORTED_POLICY_TYPES = {
     'expansion' : ['vanilla','neural'],
     'simulation' : ['to-end'],
     'update' : ['vanilla', 'value'],
-    'simulation_rollout' : ['random-unvisited','random'],
     'expansion_rollout': ['random-unvisited','random']
 }

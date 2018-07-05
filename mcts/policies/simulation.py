@@ -1,9 +1,10 @@
 from ..base.policy import BasePolicy
+from .rollout import RandomChoice
 
-class SimulateToEnd(BasePolicy):
+class RandomToEnd(BasePolicy):
 
-    def __init__(self, rollout_policy):
-        self.rollout = rollout_policy
+    def __init__(self):
+        self.rollout = RandomChoice()
         super().__init__()
 
     def __call__(self, current, environment):

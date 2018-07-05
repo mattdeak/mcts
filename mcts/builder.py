@@ -23,7 +23,7 @@ class ConfigBuilder:
             'neural' : NNExpansion
         },
         'simulation' : {
-            'to-end' : SimulateToEnd
+            'random-to-end' : RandomToEnd
         },
         'update' : {
             'vanilla' : VanillaUpdate,
@@ -33,10 +33,6 @@ class ConfigBuilder:
             'random' : RandomChoice,
             'random-unvisited' : RandomUnvisited
         },
-        'simulation_rollout' : {
-            'random' : RandomChoice,
-            'random-unvisited' : RandomUnvisited
-        }
     }
 
     @classmethod
