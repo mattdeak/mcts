@@ -44,3 +44,32 @@ def softmax(X, theta = 1.0, axis = None):
     if len(X.shape) == 1: p = p.flatten()
 
     return p
+
+
+def node_to_probability_distribution(node, t=0.1):
+    """Converts a nodes edge information into a
+    search probability distrubtion proportional to
+    N(A)^(1/t)/sum(N(B)^1/t)
+    
+    Arguments:
+        node {mcts.tree.Node} -- The node used to process
+            search probabilities
+    
+    Keyword Arguments:
+        t {float} -- temperature argument [0,1]. 
+            Values close to 1 return more exploratory
+            probabilities, values close to zero are more greedy.
+            (default: {0.1})
+
+    Returns:
+        [numpy.array] -- An array of shape (n_actions, 2) where the 
+        first column corresponds to the action and the second to the
+        search probability of that action
+
+    """
+    edges = node.edges
+    arr = np.array([[np.float(action), edge.n] for action, edge in edges.items()])
+    arr[:, 1] = arr[:, 1]**(1/t)/np.sum(arr[:, 1]**(1/t))
+
+    return arr
+

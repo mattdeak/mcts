@@ -1,4 +1,7 @@
+import numpy as np
 from ..base.policy import BasePolicy
+from ..utils import node_to_probability_distribution
+
 class MostVisited(BasePolicy):
     """Chooses the most visited child node of a given node."""
     def __call__(self, node):
@@ -19,6 +22,18 @@ class ProportionalToVisitCount(BasePolicy):
     def __init__(self, t=0.1):
         self.t = t
 
-    # TODO: Implement this
     def __call__(self, node):
-        pass
+        """Selects an action probabilistically from a set of node edges.
+        Action selection is proportional to N(A)^(1/t)/sum(N(B)^1/t)
+
+        Arguments:
+            node {mcts.tree.Node} -- The node to process into search probabilities.
+        
+        Returns:
+            [int] -- The selected action
+        """
+        search_array = node_to_probability_distribution(node, t=self.t)
+        return np.random.choice(
+            search_array[:, 0], 
+            p=search_array[:, 1]
+            ).astype(np.int)
