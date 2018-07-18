@@ -4,7 +4,7 @@ from numpy import random
 class BasicReplay:
     """A basic replay table.
     
-    Stores state, action-value and state-value information in numpy arrays.
+    Stores state, policy-value and state-value information in numpy arrays.
     Can be used as a generator to randomly select from the replay table."""
 
     def __init__(self, state_shape, policy_size, capacity=50000):
@@ -13,26 +13,35 @@ class BasicReplay:
         self._insertion_index = 0
         
         self._states = np.zeros([self._capacity, *state_shape])
-        self._action_values = np.zeros([self._capacity, policy_size])
+        self._policy_values = np.zeros([self._capacity, policy_size])
         self._state_values = np.zeros(self._capacity)
 
-    def add_data(self, states, action_values, state_values):
+
+    def add_data(self, states, policy_values, state_values):
+        """Adds data to the replay table.
+        
+        Arguments:
+            states {np.Array or tf.Tensor} -- The state information.
+            policy_values {np.Array or tf.Tensor} -- The policy search probabilities.
+            state_values {float} -- The reward from a given state.
+        """
         n = states.shape[0]
 
         start = self._insertion_index % self._capacity
         end = start + n
   
         self._states[start:end, ...] = states
-        self._action_values[start:end, ...] = action_values
+        self._policy_values[start:end, ...] = policy_values
         self._state_values[start:end] = state_values
             
         self._insertion_index += n
 
+
     @property
     def size(self):
         return min(self._insertion_index, self.capacity)
-        
-        
+
+
     def get_batch(self, batch_size):
         if self._insertion_index == 0:
             ix = 0
@@ -42,5 +51,5 @@ class BasicReplay:
         else:
             ix = random.choice(np.minimum(self._insertion_index, self._capacity), size=batch_size, replace=False)
         
-        return self._states[ix, ...], self._action_values[ix, ...], self._state_values[ix, ...]
+        return self._states[ix, ...], self._policy_values[ix, ...], self._state_values[ix, ...]
         

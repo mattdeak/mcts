@@ -7,6 +7,7 @@ from copy import deepcopy
 from .tree.gametree import GameTree
 from . import SUPPORTED_POLICY_TYPES
 from .builder import ConfigBuilder
+from multiprocessing import Process
 
 
 class MCTS:
@@ -90,9 +91,8 @@ class MCTS:
 
         # Run MCTS for the calculation window
         while (datetime.datetime.utcnow() - begin < self._calculation_time):
-            depth = self.run(current)
-            games_played += 1
-            max_depth = max(depth, max_depth)
+            self.run(current)
+            # max_depth = max(depth, max_depth)
 
         self._logger.debug("Searches Run: {} | Max Depth: {}".format(games_played, max_depth))
 
@@ -100,11 +100,7 @@ class MCTS:
         action = self.choose(current)
         current, reward, done = self._step(current, action, self.environment)
 
-        if done:
-            if hasattr(self, "_handle_terminal"):
-                self._handle_terminal(self.game_history, reward, self.environment.winner)
-
-            self.reset()
+        return self.game_history, reward, done, self.environment.winner
 
 
     def run(self, root):
@@ -172,16 +168,6 @@ class MCTS:
             if hasattr(policy, name):
                 setattr(policy, name, value)
 
-    def set_terminal_callback(self, callback):
-        self._handle_terminal = callback
-        self._handle_terminal.add_tree(self.tree)
-    
-    def self_play(self, games=100):
-        for i in range(games):
-            self.environment.reset()
-            self.reset()
-            while not self.environment.terminal:
-                self.act()
 
     def _step(self, current, action, environment):
         """Takes a step in the environment"""

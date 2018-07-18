@@ -3,6 +3,7 @@ import numpy as np
 import logwood
 from keras.models import load_model
 from keras.callbacks import TensorBoard
+import tensorflow as tf
 from copy import deepcopy
 
 class Model:
@@ -27,6 +28,11 @@ class Model:
 
         self._logger = logwood.get_logger(self.name)
         self.model = model
+
+        # Allows the model to be multiprocessed
+        self.model._make_predict_function()
+        self._graph = tf.get_default_graph()
+
         self.kwargs = kwargs
 
     def clone(self):
@@ -44,7 +50,12 @@ class Model:
 
     def predict_from_node(self, node, **kwargs):
         X = np.expand_dims(node.state, axis=0)
-        return self.predict(X)
+        with self._graph.as_default():
+            return self.model.predict(X)
+
+    def predict(self, X):
+        with self._graph.as_default():
+            return self.model.predict(X)
 
     def __getattr__(self, attr):
         return self.model.__getattribute__(attr)
