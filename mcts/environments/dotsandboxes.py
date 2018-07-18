@@ -20,8 +20,8 @@ class DotsAndBoxes():
 
         self.size = size
 
-        # State is dot-to-dot cells with 4 channels (up,down,left,right)
-        self.state = np.zeros([size,size,4])
+        # State is dot-to-dot cells with 5 channels (up,down,left,right, none)
+        self.state = np.zeros([size,size,5])
         self.player = 1
         self.n_players = 2
         self.score = defaultdict(int)
@@ -106,7 +106,8 @@ class DotsAndBoxes():
     def reset(self):
         self.actions = [i for i in range(self.size * (self.size + 1) * 2)]
         self.score = defaultdict(int)
-        self.state = np.zeros([self.size,self.size,4])
+        self.state = np.zeros([self.size,self.size,5])
+        self.state[:, :, 4] = np.ones([self.size, self.size])
         self.winner = None
         self.player = 1
         self.terminal = False
@@ -118,6 +119,7 @@ class DotsAndBoxes():
         for state_index in states:
             row,column,side = state_index
             self.state[row,column,side] = 1
+            self.state[row, column, 4] = 0
         
     def convert_to_wall(self,state):
         """Converts a specific game state array to the wall it represents"""
