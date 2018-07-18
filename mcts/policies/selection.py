@@ -29,8 +29,6 @@ class PUCT:
         edges = node.edges
         arr = np.array([[action, edge.p, edge.n, edge.q] for action, edge in edges.items()])
         
-        # Softmax the priors
-        arr[:, 1] = 1/(1 + np.exp(arr[:, 1]))
         # PUCT formula
         qus = arr[:, 3] + self.C * arr[:, 1] \
               * np.sqrt(np.sum(arr[:, 2])) \

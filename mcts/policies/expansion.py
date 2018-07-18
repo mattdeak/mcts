@@ -1,4 +1,5 @@
 from ..base.policy import NodeTrackingPolicy
+from ..utils import softmax
 import xxhash
 
 class VanillaExpansion(NodeTrackingPolicy):
@@ -19,11 +20,12 @@ class NNExpansion(NodeTrackingPolicy):
     def __call__(self, node, actions):
 
         node.expanded = True
-        policy, value = self.model.predict_from_node(node)
+        policy_logits, value = self.model.predict_from_node(node)
 
-        # We only care about the priors for
-        # valid actions from the current state
-        valid_priors = policy[0][actions]
+        # The policy output is in logit form.
+        # We need to softmax it to turn it into priors.
+        priors = softmax(policy_logits[0])
+        valid_priors = priors[actions]
 
         node.set_edges(actions, priors=valid_priors)
         node.set_value(value[0][0])
