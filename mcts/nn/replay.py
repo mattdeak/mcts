@@ -1,5 +1,9 @@
 import numpy as np
 from numpy import random
+import pickle
+
+def load_replay(path):
+    return pickle.load(open(path, 'rb'))
 
 class BasicReplay:
     """A basic replay table.
@@ -41,6 +45,8 @@ class BasicReplay:
     def size(self):
         return min(self._insertion_index, self.capacity)
 
+    def save(self, filepath):
+        pickle.dump(self, open(filepath, 'wb'))
 
     def get_batch(self, batch_size):
         if self._insertion_index == 0:

@@ -6,7 +6,8 @@ import logwood
 
 class StagedModelTrainer:
 
-    def __init__(self, env, config, replay, evaluator, callbacks=[], model_dir=None):
+    def __init__(self, env, config, replay, evaluator, 
+                callbacks=[], model_dir=None, replay_dir=None):
         """Initializes a StagedModelTrainer.
 
         This class trains a neural-net guided by MCTS in three stages.
@@ -20,11 +21,18 @@ class StagedModelTrainer:
             config {dict} -- A configuration for the MCTS to run. Must contain a `model` key.
             replay {mcts.nn.replay.Replay} -- The replay table used to store data points.
             evaluator {mcts.evaluators.Evaluator} -- The evaluator to use during the evaluation stage.
+        
+        Keyword Arguments:
+            callbacks {list} -- A list of Keras Callbacks to use in training (default: {[]})
+            model_dir {str} -- A filepath to save models (default: {None})
+            replay_dir {str} -- A filepath to save replay tables (default: {None})
         """
+
         self.environment = env
         self.config = config
         self.generation_model = config['model']
         self.savepath = model_dir
+        self.replay_path = replay_dir
         self.training_model = self.generation_model.clone()
         self.callbacks = callbacks
         self.replay = replay
@@ -53,15 +61,24 @@ class StagedModelTrainer:
                 game_results, reward, winner = play_game(mcts)
                 self._process_and_store(mcts, game_results, reward, winner)
 
+
+            # Save replay table
+            if self.replay_path:
+                replay_savepath = "{}/replay{}".format(self.replay_path, epoch)
+                self._logger.info(
+                    "Saving Replay Table to {}".format(replay_savepath))
+                self.replay.save(replay_savepath)
+
             # Train model
             self._logger.info("Entering Training Phase")
             self.train_batches(training_steps)
 
             # Evaluate Model
             self._logger.info("Entering Evaluation Phase")
-            results = self.evaluator.evaluate(self.generation_model, 
-                                             self.training_model,
-                                             games=evaluation_steps)    
+            results = self.evaluator.evaluate(
+                self.generation_model, 
+                self.training_model,
+                games=evaluation_steps)    
 
             if results.winner == "Challenger":
                 self._logger.info("Challenger model wins - updating model...")
@@ -69,9 +86,9 @@ class StagedModelTrainer:
                     self.training_model.get_weights()
                 )
 
-                savepath = "{}/model{}".format(self.savepath, epoch)
-                self._logger.info("Saving Model to {}".format(savepath))
                 if self.savepath:
+                    savepath = "{}/model{}".format(self.savepath, epoch)
+                    self._logger.info("Saving Model to {}".format(savepath))
                     self.training_model.save(savepath)
 
             else:
@@ -86,12 +103,13 @@ class StagedModelTrainer:
         # Since this is a reinforcement learning problem, validation data doesn't really mean anything. 
         # However, we need to specify it for some callbacks (e.g tensorboard), 
         # so we'll just randomly use some data points to approximate.
-        self.training_model.fit_generator(generator, 
-                                 steps_per_epoch=1,
-                                 epochs=n_batches,
-                                 callbacks=self.callbacks,
-                                 validation_data=validation_data
-                                 )
+        self.training_model.fit_generator(
+            generator, 
+            steps_per_epoch=1,
+            epochs=n_batches,
+            callbacks=self.callbacks,
+            validation_data=validation_data
+        )
     
 
     def _make_generator(self, batch_size):
@@ -101,6 +119,7 @@ class StagedModelTrainer:
                 X, y = input_states, {'policy_head':action_values, 'value_head':rewards}
                 yield X, y
         return generator(batch_size)
+
 
     def _process_and_store(self, m, game_results, reward, winner):
         """Processes the data from the game results of an MCTS.
@@ -135,15 +154,3 @@ class StagedModelTrainer:
                 r = reward
             
             self.replay.add_data(node.state, policy_values, r)
-            
-
-
-class SynchronousTrainer:
-    """Continuously trains a neural net from a replay table component."""
-    def __init__(self, replay, callbacks=[], default_batch_size=32):
-        self.replay = replay
-        self.default_batch_size = 32
-        self.callbacks = callbacks
-
-    def set_model(self, model):
-        self.model = model
