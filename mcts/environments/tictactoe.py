@@ -48,7 +48,6 @@ class TicTacToe:
         self._state = np.zeros(9)
         self.winner = None
         self.player = 1
-        self.last_player = 0
         self.terminal = False
 
     def board(self):
@@ -79,7 +78,6 @@ class TicTacToe:
 
     def _rotate_players(self):
         self.player = 1 if self.player == 2 else 2
-        self.last_player = 1 if self.last_player == 2 else 2
 
     def clone(self):
         return deepcopy(self)
