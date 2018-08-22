@@ -84,8 +84,8 @@ class NNEvaluator:
         challenger.build(self.config)
 
         self._logger.debug("Setting Models")
-        incumbent.set_policy_attribute(("incumbent", incumbent_model))
-        challenger.set_policy_attribute(("incumbent", challenger_model))
+        incumbent.set_policy_attribute(("model", incumbent_model))
+        challenger.set_policy_attribute(("model", challenger_model))
 
         self._logger.debug("Initializing Results")
         results = EvaluationResults(incumbent, challenger, win_threshold=0.55)
