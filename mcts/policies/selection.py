@@ -11,7 +11,7 @@ class UCB1(BasePolicy):
     def __call__(self, node):
         actions = node.edges.keys()
 
-        log_n = np.log(sum([node[action].n for action in actions]))
+        log_n = np.log(sum([node[action].n for action in actions]) + 1)
         ucb1_values = [[action, node[action].q + self.C*np.sqrt(log_n/(node[action].n + 1))] for action in actions]
         action, value = max(ucb1_values, key=lambda x: x[1])
         return action

@@ -183,7 +183,7 @@ class DotsAndBoxes():
             
             for column in range(self.size):
                 string += ("{:<1}".format("."))
-                n, s, e, w = self.state[row,column]
+                n, s, e, w, _ = self.state[row,column]
                 n_string = ""                
                 if n == 1:
                     n_string = "----"
@@ -233,7 +233,7 @@ class DotsAndBoxes():
 
             for column in range(self.size):
                 string += ("{:<1}".format("."))
-                n, s, e, w = state[row, column]
+                n, s, e, w, _ = state[row, column]
                 n_string = ""
                 if n == 1:
                     n_string = "----"
@@ -269,7 +269,10 @@ class DotsAndBoxes():
 
         string += ".\n"
 
-        string += "\n{} Score is {}\n{} Score is {}\n".format(self._player1, self._player2, self.score[self._player1],
-                                                                          self.score[self._player2])
+        string += "\n{} Score is {}\n{} Score is {}\n".format(
+            self._player1, 
+            self._player2, 
+            self.score[self._player1],
+            self.score[self._player2])
 
         return string
