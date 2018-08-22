@@ -44,7 +44,6 @@ class Model:
             clone = load_model(temp.name)
             
         clone.name = self.name + '_clone'
-        clone.set_weights(self.model.get_weights())
 
         return Model(clone)
 
