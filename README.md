@@ -26,10 +26,10 @@ config = {
 tictactoe = TicTacToe()
 
 # Initialize MCTS
-mcts = MCTS(tictactoe, calculation_time=5)
+ai = MCTS(tictactoe, calculation_time=5)
 
 # Build the MCTS with the config dictionary
-mcts.build(config)
+ai.build(config)
 ```
 
 Each model is composed of five different policies.
@@ -44,7 +44,7 @@ Each model is composed of five different policies.
  
  To _act_ in an environment, simply call the `act()` method. This will run an MCTS for the number of seconds provided in `calculation_time`, and then choose the best action according to the `action` policy. E.g
  ```
- mcts.act()
+ ai.act()
  ```
  
  #### Available Policy Choices
