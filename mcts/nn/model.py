@@ -47,10 +47,10 @@ class Model:
         return Model(clone)
 
     def predict_from_node(self, node, **kwargs):
-        """Runs a prediction from an mcts.Node object directly
+        """Runs a prediction from an mcts.tree.Node object directly
         
         Arguments:
-            node {mcts.Node} -- The node on which the model is meant to predict
+            node {mcts.tree.Node} -- The node on which the model is meant to predict
         
         Returns:
             numpy.array -- Predictions from the state information contained in the node
