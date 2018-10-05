@@ -2,6 +2,7 @@ from ..mcts import MCTS
 from ..utils import play_game, node_to_probability_distribution
 
 import numpy as np
+import multiprocessing
 import logwood
 
 class StagedModelTrainer:
@@ -30,10 +31,10 @@ class StagedModelTrainer:
 
         self.environment = env
         self.config = config
-        self.generation_model = config['model']
+        self.training_model = config['model']
+        self.generation_model = self.training_model.clone()
         self.savepath = model_dir
         self.replay_path = replay_dir
-        self.training_model = self.generation_model.clone()
         self.callbacks = callbacks
         self.replay = replay
         self.evaluator = evaluator
@@ -78,7 +79,7 @@ class StagedModelTrainer:
             results = self.evaluator.evaluate(
                 self.generation_model, 
                 self.training_model,
-                games=evaluation_steps)    
+                games=evaluation_steps)
 
             if results.winner == "Challenger":
                 self._logger.info("Challenger model wins - updating model...")
@@ -154,3 +155,7 @@ class StagedModelTrainer:
                 r = reward
             
             self.replay.add_data(node.state, policy_values, r)
+
+        
+
+    

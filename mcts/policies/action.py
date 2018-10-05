@@ -30,7 +30,7 @@ class ProportionalToVisitCount(BasePolicy):
             node {mcts.tree.Node} -- The node to process into search probabilities.
         
         Returns:
-            [int] -- The selected action
+            int -- The selected action
         """
         search_array = node_to_probability_distribution(node, t=self.t)
         return np.random.choice(

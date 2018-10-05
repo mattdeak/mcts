@@ -3,6 +3,14 @@ from numpy import random
 import pickle
 
 def load_replay(path):
+    """Loads a replay table from a pickle file.
+    
+    Arguments:
+        path {str} -- The path to the saved replay table.
+    
+    Returns:
+        BasicReplay -- The replay table object
+    """
     return pickle.load(open(path, 'rb'))
 
 class BasicReplay:
@@ -46,9 +54,25 @@ class BasicReplay:
         return min(self._insertion_index, self.capacity)
 
     def save(self, filepath):
+        """Saves the replay table as a pickled object.
+        
+        Arguments:
+            filepath {str} -- The save filepath for the replay table.
+        """
         pickle.dump(self, open(filepath, 'wb'))
 
     def get_batch(self, batch_size):
+        """Gets a random batch from the replay table.
+        
+        Arguments:
+            batch_size {int} -- The number of samples in the batch.
+        
+        Returns:
+            List -- A list that contains :
+                State information for batch_size samples
+                Policy information for batch_size samples
+                Value information for batch_size samples
+        """
         if self._insertion_index == 0:
             ix = 0
         

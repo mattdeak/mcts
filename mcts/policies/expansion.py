@@ -18,7 +18,12 @@ class NNExpansion(NodeTrackingPolicy):
         self.model = model
 
     def __call__(self, node, actions):
-
+        """Performs expansion on node.
+        
+        Arguments:
+            node {mcts.tree.Node} -- The node to expand.
+            actions {numpy.array[int]} -- Available actions at this state
+        """
         node.expanded = True
         policy_logits, value = self.model.predict_from_node(node)
 
