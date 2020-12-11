@@ -11,8 +11,9 @@ from multiprocessing import Process
 
 
 class MCTS:
-
-    def __init__(self, environment, calculation_time=5, terminal_callback = None, name=None):
+    def __init__(
+        self, environment, calculation_time=5, terminal_callback=None, name=None
+    ):
         self.tree = GameTree()
 
         # Configure logger
@@ -37,27 +38,28 @@ class MCTS:
         for key, policy in config.items():
             if key not in SUPPORTED_POLICY_TYPES:
                 raise ValueError("{} is not a supported policy type.".format(key))
-            elif key == 'action':
+            elif key == "action":
                 self.choose = policy
-            elif key == 'selection':
+            elif key == "selection":
                 self.select = policy
-            elif key == 'expansion':
+            elif key == "expansion":
                 self.expand = policy
                 self.expand.add_tree(self.tree)
-            elif key == 'simulation':
+            elif key == "simulation":
                 self.simulate = policy
-            elif key == 'update':
+            elif key == "update":
                 self.update = policy
                 self.update.add_tree(self.tree)
-            elif key == 'expansion_rollout':
+            elif key == "expansion_rollout":
                 self.expansion_rollout = policy
 
         # Check that required policies exist
         if not self.update or not self.select or not self.expand:
-            raise ValueError("Config dictionary is missing vital policies. selection, expansion and update policies are required.")
+            raise ValueError(
+                "Config dictionary is missing vital policies. selection, expansion and update policies are required."
+            )
 
         self.configured = True
-             
 
     @property
     def calculation_time(self):
@@ -71,13 +73,13 @@ class MCTS:
         self.terminal = False
         self.game_history = []
         self.tree.reset()
-    
+
     def act(self):
         assert self.configured, "MCTS must be configured before running."
 
         state = self.environment.state
         player = self.environment.player
-        
+
         current = self.tree.get_by_state(state, player=player)
         self.game_history.append(current.id)
 
@@ -90,18 +92,19 @@ class MCTS:
         max_depth = 0
 
         # Run MCTS for the calculation window
-        while (datetime.datetime.utcnow() - begin < self._calculation_time):
+        while datetime.datetime.utcnow() - begin < self._calculation_time:
             self.run(current)
             # max_depth = max(depth, max_depth)
 
-        self._logger.debug("Searches Run: {} | Max Depth: {}".format(games_played, max_depth))
+        self._logger.debug(
+            "Searches Run: {} | Max Depth: {}".format(games_played, max_depth)
+        )
 
         # Act in the environment
         action = self.choose(current)
         current, reward, done = self._step(current, action, self.environment)
 
         return self.game_history, reward, done, self.environment.winner
-
 
     def run(self, root):
         """Runs a single MCTS search based on policies provided during `build`.
@@ -126,9 +129,8 @@ class MCTS:
         while not done and current.expanded:
             action = self.select(current)
             history.append([current.id, action])
-            current, reward, done = self._step(current, action, 
-                                    env_clone)
-            
+            current, reward, done = self._step(current, action, env_clone)
+
             depth += 1
 
         # Expansion Phase
@@ -140,8 +142,7 @@ class MCTS:
             try:
                 action = self.expansion_rollout(current, env_clone)
                 history.append([current.id, action])
-                current, reward, done = self._step(current, action, 
-                                        env_clone)
+                current, reward, done = self._step(current, action, env_clone)
                 depth += 1
             except Exception:
                 self._logger.debug("No Expansion Rollout Phase")
@@ -167,7 +168,6 @@ class MCTS:
         for policy in self.policies:
             if hasattr(policy, name):
                 setattr(policy, name, value)
-
 
     def _step(self, current, action, environment):
         """Takes a step in the environment"""

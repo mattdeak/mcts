@@ -1,11 +1,13 @@
 from sortedcontainers import SortedList
 import xxhash
 
+
 class Edge:
     """The edge class for the game tree.
     
     This class stores the visit count, q-value and priors of edges in the tree.
     When evaluated, an edge will point to a Node."""
+
     def __init__(self, action, prior=0):
         self.action = action
         self.n = 0
@@ -24,13 +26,15 @@ class Edge:
 
         return self.w / self.n
 
+
 class Node:
     """The Node class for the game tree.
     
     This class stores the state information in the game tree. Each node will contain a list
     of edges upon being expanded."""
+
     def __init__(self, state, player=None):
-        self.id = xxhash.xxh64(state).digest() # Used to identify state
+        self.id = xxhash.xxh64(state).digest()  # Used to identify state
         self.state = state
         self.player = player
         self.expanded = False
@@ -38,9 +42,12 @@ class Node:
     def set_edges(self, actions, priors=[]):
         """Sets the edges of the node"""
         if priors == []:
-            self.edges = {action : Edge(action) for action in actions}
+            self.edges = {action: Edge(action) for action in actions}
         else:
-            self.edges = {actions[i] : Edge(actions[i], prior=priors[i]) for i in range(len(actions))}
+            self.edges = {
+                actions[i]: Edge(actions[i], prior=priors[i])
+                for i in range(len(actions))
+            }
 
     def set_value(self, value):
         """Sets the value of the node.
@@ -57,11 +64,13 @@ class Node:
     def __getitem__(self, action):
         return self.edges[action]
 
+
 class GameTree:
     """Contains the game tree for the MCTS"""
+
     def __init__(self):
         self.nodes = {}
-        
+
     def evaluate(self, parent_id, action, state, player=None):
         """Adds a node to the node tree if 
         the node is not already present
@@ -99,5 +108,3 @@ class GameTree:
 
     def reset(self):
         self.nodes = {}
-
-

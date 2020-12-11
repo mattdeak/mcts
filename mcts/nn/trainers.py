@@ -5,10 +5,18 @@ import numpy as np
 import multiprocessing
 import logwood
 
-class StagedModelTrainer:
 
-    def __init__(self, env, config, replay, evaluator, 
-                callbacks=[], model_dir=None, replay_dir=None):
+class StagedModelTrainer:
+    def __init__(
+        self,
+        env,
+        config,
+        replay,
+        evaluator,
+        callbacks=[],
+        model_dir=None,
+        replay_dir=None,
+    ):
         """Initializes a StagedModelTrainer.
 
         This class trains a neural-net guided by MCTS in three stages.
@@ -31,7 +39,7 @@ class StagedModelTrainer:
 
         self.environment = env
         self.config = config
-        self.training_model = config['model']
+        self.training_model = config["model"]
         self.generation_model = self.training_model.clone()
         self.savepath = model_dir
         self.replay_path = replay_dir
@@ -40,7 +48,9 @@ class StagedModelTrainer:
         self.evaluator = evaluator
         self._logger = logwood.get_logger(self.__class__.__name__)
 
-    def train(self, epochs=10, generation_steps=100, training_steps=100, evaluation_steps=10):
+    def train(
+        self, epochs=10, generation_steps=100, training_steps=100, evaluation_steps=10
+    ):
         """Trains the model in stages.
         
         Keyword Arguments:
@@ -51,7 +61,7 @@ class StagedModelTrainer:
         """
         mcts = MCTS(self.environment)
         mcts.build(self.config)
-        mcts.calculation_time = 1 #TODO: Allow this to be included in config
+        mcts.calculation_time = 1  # TODO: Allow this to be included in config
         for epoch in range(epochs):
             self._logger.info("Starting epoch {}".format(epoch))
             # Generate Data
@@ -62,12 +72,10 @@ class StagedModelTrainer:
                 game_results, reward, winner = play_game(mcts)
                 self._process_and_store(mcts, game_results, reward, winner)
 
-
             # Save replay table
             if self.replay_path:
                 replay_savepath = "{}/replay{}".format(self.replay_path, epoch)
-                self._logger.info(
-                    "Saving Replay Table to {}".format(replay_savepath))
+                self._logger.info("Saving Replay Table to {}".format(replay_savepath))
                 self.replay.save(replay_savepath)
 
             # Train model
@@ -77,15 +85,12 @@ class StagedModelTrainer:
             # Evaluate Model
             self._logger.info("Entering Evaluation Phase")
             results = self.evaluator.evaluate(
-                self.generation_model, 
-                self.training_model,
-                games=evaluation_steps)
+                self.generation_model, self.training_model, games=evaluation_steps
+            )
 
             if results.winner == "Challenger":
                 self._logger.info("Challenger model wins - updating model...")
-                self.generation_model.set_weights(
-                    self.training_model.get_weights()
-                )
+                self.generation_model.set_weights(self.training_model.get_weights())
 
                 if self.savepath:
                     savepath = "{}/model{}".format(self.savepath, epoch)
@@ -95,32 +100,33 @@ class StagedModelTrainer:
             else:
                 self._logger.info("Challenger model loses - no update performed")
 
-
     def train_batches(self, n_batches, batch_size=16):
         """Trains the model for a number of batches"""
         generator = self._make_generator(batch_size)
         validation_data = next(generator)
 
-        # Since this is a reinforcement learning problem, validation data doesn't really mean anything. 
-        # However, we need to specify it for some callbacks (e.g tensorboard), 
+        # Since this is a reinforcement learning problem, validation data doesn't really mean anything.
+        # However, we need to specify it for some callbacks (e.g tensorboard),
         # so we'll just randomly use some data points to approximate.
         self.training_model.fit_generator(
-            generator, 
+            generator,
             steps_per_epoch=1,
             epochs=n_batches,
             callbacks=self.callbacks,
-            validation_data=validation_data
+            validation_data=validation_data,
         )
-    
 
     def _make_generator(self, batch_size):
         def generator(batch_size):
             while True:
                 input_states, action_values, rewards = self.replay.get_batch(batch_size)
-                X, y = input_states, {'policy_head':action_values, 'value_head':rewards}
+                X, y = (
+                    input_states,
+                    {"policy_head": action_values, "value_head": rewards},
+                )
                 yield X, y
-        return generator(batch_size)
 
+        return generator(batch_size)
 
     def _process_and_store(self, m, game_results, reward, winner):
         """Processes the data from the game results of an MCTS.
@@ -140,7 +146,7 @@ class StagedModelTrainer:
             # The probability distribution of selecting actions
             # in the current node based on visit count.
             pi = node_to_probability_distribution(node)
-            
+
             # All valid actions are contained in the edge keys
             valid_actions = list(node.edges)
             # Retrive only valid entries of the probability distribution
@@ -153,9 +159,5 @@ class StagedModelTrainer:
                 r = -reward
             else:
                 r = reward
-            
+
             self.replay.add_data(node.state, policy_values, r)
-
-        
-
-    

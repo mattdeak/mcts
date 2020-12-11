@@ -6,6 +6,7 @@ from keras.callbacks import TensorBoard
 import tensorflow as tf
 from copy import deepcopy
 
+
 class Model:
     n_models = 0
     """The base neural network class for MCTS integration.
@@ -18,9 +19,10 @@ class Model:
 
     As of version Models may also have a value head ( . This
     """
+
     def __init__(self, model, **kwargs):
         name = kwargs.get("name")
-        
+
         if name:
             self.name = name
         else:
@@ -37,12 +39,12 @@ class Model:
 
     def clone(self):
         """Makes a compiled clone of the current model."""
-        # Save and restore a model 
+        # Save and restore a model
         with tempfile.NamedTemporaryFile() as temp:
             self.model.save(temp.name)
             clone = load_model(temp.name)
-            
-        clone.name = self.name + '_clone'
+
+        clone.name = self.name + "_clone"
 
         return Model(clone)
 

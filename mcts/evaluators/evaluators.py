@@ -2,6 +2,7 @@ from ..mcts import MCTS
 import logwood
 import numpy as np
 
+
 class EvaluationResults:
     """Stores result information from evaluations"""
 
@@ -14,13 +15,11 @@ class EvaluationResults:
         self.challenger_wins = 0
         self.draws = 0
 
-
     def get_winning_mcts(self):
         if self._challenger_won():
             return self.challenger
         else:
             return self.incumbent
-
 
     @property
     def winner(self):
@@ -28,19 +27,14 @@ class EvaluationResults:
             return "Challenger"
         else:
             return "Incumbent"
-            
 
     def _challenger_won(self):
-        return ((
-            self.challenger_wins \
-            / (self.incumbent_wins + self.challenger_wins)) \
-             > self.threshold)
-
-    
+        return (
+            self.challenger_wins / (self.incumbent_wins + self.challenger_wins)
+        ) > self.threshold
 
 
 class NNEvaluator:
-
     def __init__(self, environment, config, win_threshold=0.55):
         self._logger = logwood.get_logger(self.__class__.__name__)
         self.environment = environment.clone()
@@ -56,10 +50,8 @@ class NNEvaluator:
         Raises:
             ValueError -- If validation fails
         """
-        if config.get('terminal'):
+        if config.get("terminal"):
             raise ValueError("Evaluators should not have terminal policies.")
-
-
 
     def evaluate(self, incumbent_model, challenger_model, games=100):
         """Evaluates a tournament between MCTS guided by 
@@ -76,8 +68,12 @@ class NNEvaluator:
             EvaluationResults -- A results class detailing the game results
         """
         # TODO: Update config so we can pass the calculation time in there
-        incumbent = MCTS(self.environment, name='Evaluation Incumbent', calculation_time=2)
-        challenger = MCTS(self.environment, name='Evaluation Challenger', calculation_time=2)
+        incumbent = MCTS(
+            self.environment, name="Evaluation Incumbent", calculation_time=2
+        )
+        challenger = MCTS(
+            self.environment, name="Evaluation Challenger", calculation_time=2
+        )
 
         self._logger.debug("Building MCTS")
         incumbent.build(self.config)
@@ -96,31 +92,22 @@ class NNEvaluator:
             while not self.environment.terminal:
                 if game % 2:
                     incumbent.act()
-                    if self.environment.terminal: continue
+                    if self.environment.terminal:
+                        continue
                     challenger.act()
                 else:
                     challenger.act()
-                    if self.environment.terminal: continue
+                    if self.environment.terminal:
+                        continue
                     incumbent.act()
-            
+
             winner = self.environment.winner
             if winner == None:
                 results.draws += 1
-            elif (winner == 0 and game % 2 == 0) or \
-                (winner == 1 and game % 2 != 0):
+            elif (winner == 0 and game % 2 == 0) or (winner == 1 and game % 2 != 0):
                 results.incumbent_wins += 1
             else:
                 results.challenger_wins += 1
             self.environment.reset()
-        
+
         return results
-
-
-
-
-
-
-
-
-
-    

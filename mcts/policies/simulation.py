@@ -1,8 +1,8 @@
 from ..base.policy import BasePolicy
 from .rollout import RandomChoice
 
-class RandomToEnd(BasePolicy):
 
+class RandomToEnd(BasePolicy):
     def __init__(self):
         self.rollout = RandomChoice()
         super().__init__()
@@ -13,5 +13,5 @@ class RandomToEnd(BasePolicy):
         while not done:
             action = self.rollout(current, environment)
             observation, reward, done = environment.step(action)
-        
+
         return observation, reward, done

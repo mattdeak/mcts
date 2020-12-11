@@ -10,38 +10,27 @@ import inspect
 class ConfigBuilder:
 
     _CLASS_LOOKUP = {
-        'action' : {
-            'most-visited' : MostVisited,
-            'proportional-to-visit-count' : ProportionalToVisitCount
+        "action": {
+            "most-visited": MostVisited,
+            "proportional-to-visit-count": ProportionalToVisitCount,
         },
-        'selection' : {
-            'ucb1' : UCB1,
-            'puct' : PUCT
-        },
-        'expansion' : {
-            'vanilla' : VanillaExpansion,
-            'neural' : NNExpansion
-        },
-        'simulation' : {
-            'random-to-end' : RandomToEnd
-        },
-        'update' : {
-            'vanilla' : VanillaUpdate,
-            'value' : ValueUpdate
-        },
-        'expansion_rollout' : {
-            'random' : RandomChoice,
-            'random-unvisited' : RandomUnvisited
+        "selection": {"ucb1": UCB1, "puct": PUCT},
+        "expansion": {"vanilla": VanillaExpansion, "neural": NNExpansion},
+        "simulation": {"random-to-end": RandomToEnd},
+        "update": {"vanilla": VanillaUpdate, "value": ValueUpdate},
+        "expansion_rollout": {
+            "random": RandomChoice,
+            "random-unvisited": RandomUnvisited,
         },
     }
 
     @classmethod
     def build(cls, config):
         built_configuration = {}
-        model = config.get('model')
+        model = config.get("model")
 
         for key in cls._CLASS_LOOKUP.keys():
-            kwargs = config.get(key + '_kwargs')
+            kwargs = config.get(key + "_kwargs")
             config_choice = config.get(key)
 
             if config_choice:
@@ -66,7 +55,4 @@ class ConfigBuilder:
     @staticmethod
     def _policy_needs_model(c):
         args = inspect.getargspec(c)
-        return 'model' in args.args
-
-
-            
+        return "model" in args.args

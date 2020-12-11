@@ -1,8 +1,10 @@
 import numpy as np
 from copy import deepcopy
 
+
 class TicTacToe:
     """A toy tictactoe environment for testing MCTS"""
+
     def __init__(self):
         self.action_space = 9
         self.n_players = 2
@@ -68,7 +70,10 @@ class TicTacToe:
         if sum(state.diagonal()) == 3 or sum(state.diagonal()) == -3:
             return True
 
-        if np.fliplr(state).diagonal().sum() == 3 or np.fliplr(state).diagonal().sum() == -3:
+        if (
+            np.fliplr(state).diagonal().sum() == 3
+            or np.fliplr(state).diagonal().sum() == -3
+        ):
             return True
         else:
             return False

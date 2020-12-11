@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def play_game(mcts):
     mcts.reset()
     mcts.environment.reset()
@@ -9,7 +10,8 @@ def play_game(mcts):
 
     return game_history, reward, winner
 
-def softmax(X, theta = 1.0, axis = None):
+
+def softmax(X, theta=1.0, axis=None):
     """
     Compute the softmax of each element along an axis of X.
 
@@ -34,23 +36,24 @@ def softmax(X, theta = 1.0, axis = None):
     if axis is None:
         axis = next(j[0] for j in enumerate(y.shape) if j[1] > 1)
 
-    # multiply y against the theta parameter, 
+    # multiply y against the theta parameter,
     y = y * float(theta)
 
     # subtract the max for numerical stability
-    y = y - np.expand_dims(np.max(y, axis = axis), axis)
-    
+    y = y - np.expand_dims(np.max(y, axis=axis), axis)
+
     # exponentiate y
     y = np.exp(y)
 
     # take the sum along the specified axis
-    ax_sum = np.expand_dims(np.sum(y, axis = axis), axis)
+    ax_sum = np.expand_dims(np.sum(y, axis=axis), axis)
 
     # finally: divide elementwise
     p = y / ax_sum
 
     # flatten if X was 1D
-    if len(X.shape) == 1: p = p.flatten()
+    if len(X.shape) == 1:
+        p = p.flatten()
 
     return p
 
@@ -77,10 +80,11 @@ def node_to_probability_distribution(node, t=0.1):
 
     """
     edges = node.edges
-    arr = np.array([[np.float16(action), np.float(edge.n)] for action, edge in edges.items()])
+    arr = np.array(
+        [[np.float16(action), np.float(edge.n)] for action, edge in edges.items()]
+    )
     if arr[:, 1].sum() == 0:
         raise ValueError("No visits in edges")
-    arr[:, 1] = arr[:, 1]**(1/t)/np.sum(arr[:, 1]**(1/t))
+    arr[:, 1] = arr[:, 1] ** (1 / t) / np.sum(arr[:, 1] ** (1 / t))
 
     return arr
-

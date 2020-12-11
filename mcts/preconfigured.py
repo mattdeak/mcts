@@ -17,18 +17,19 @@ def load_vanilla_mcts(environment, c=1.41, calculation_time=5):
         [mcts.MCTS] -- A configured MCTS object.
     """
     config = {
-        'action' : 'most-visited',
-        'expansion' : 'vanilla',
-        'expansion_rollout' : 'random-unvisited',
-        'simulation' : 'random-to-end',
-        'selection' : 'ucb1',
-        'selection_kwargs' : {'C':c},
-        'update' : 'vanilla'
+        "action": "most-visited",
+        "expansion": "vanilla",
+        "expansion_rollout": "random-unvisited",
+        "simulation": "random-to-end",
+        "selection": "ucb1",
+        "selection_kwargs": {"C": c},
+        "update": "vanilla",
     }
 
     mcts = MCTS(environment, calculation_time=calculation_time)
     mcts.build(config)
     return mcts
+
 
 def load_nn_mcts(self, environment, model, c=1.41, calculation_time=5):
     """[summary]
